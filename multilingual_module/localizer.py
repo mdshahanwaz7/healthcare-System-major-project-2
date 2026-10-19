@@ -153,7 +153,19 @@ def localize_cds_response(cds_response: Dict[str, Any], target_lang: str) -> Dic
 
     # 5. Grounded / Partially Grounded Response
     original_answer = res.get("answer", "")
-    localized_answer = localize_clinical_text(original_answer, norm_lang)
+    # Interaction-rule answers may already be localized by the verified rule builder.
+    # Do not mislabel them as drug-monograph summaries or run them through
+    # the generic glossary-based localizer a second time.
+    interaction_rule_answer = (
+        str(res.get("pipeline_mode", "")).lower() == "drug_interaction_screening"
+        or "RUL-INT-" in str(original_answer)
+        or "Clinical Drug Interaction Alert" in str(original_answer)
+    )
+    localized_answer = (
+        original_answer
+        if interaction_rule_answer
+        else localize_clinical_text(original_answer, norm_lang)
+    )
     
     # In patient mode, attach localized educational disclaimer
     if res.get("execution_mode") == "patient":

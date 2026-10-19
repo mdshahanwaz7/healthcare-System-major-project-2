@@ -1,16 +1,22 @@
-"""
-RAG Module V2 Package Initialization.
-Exposes the core pipeline and configuration.
+﻿"""
+RAG Module V2 package initialization.
+Loads the medical pipeline only when requested.
 """
 import sys
 from pathlib import Path
 
-# Ensure root directory is always on sys.path for robust imports
 ROOT_DIR = str(Path(__file__).resolve().parent.parent)
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
 from rag_module.config.rag_config import RAGConfig, DEFAULT_CONFIG
-from rag_module.rag_pipeline import MedicalRAGPipeline
+
+
+def __getattr__(name: str):
+    if name == "MedicalRAGPipeline":
+        from rag_module.rag_pipeline import MedicalRAGPipeline
+        return MedicalRAGPipeline
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = ["RAGConfig", "DEFAULT_CONFIG", "MedicalRAGPipeline"]

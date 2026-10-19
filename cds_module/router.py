@@ -2,6 +2,7 @@
 FastAPI Router for Clinical Decision Support (CDS) Coordination Layer.
 Exposes POST /cds/evaluate and POST /cds/screen-prescription.
 """
+import logging
 from fastapi import APIRouter, HTTPException, Depends, status
 from cds_module.models import (
     CDSEvaluateRequest,
@@ -10,6 +11,8 @@ from cds_module.models import (
     PrescriptionScreenResponse
 )
 from cds_module.orchestrator import CDSOrchestrator, get_cds_orchestrator
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/cds", tags=["Clinical Decision Support"])
 
@@ -39,6 +42,7 @@ def evaluate_clinical_query(
             detail=str(ve)
         )
     except Exception as e:
+        logger.exception("CDS evaluation failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"CDS evaluation pipeline encountered an internal error: {str(e)}"

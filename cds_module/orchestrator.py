@@ -137,7 +137,14 @@ class CDSOrchestrator:
                 from multilingual_module.safety_templates import get_conversational_greeting
                 return CDSEvaluateResponse(
                     clinical_query=query_text,
-                    answer=get_conversational_greeting(effective_lang),
+                    answer=(
+                    "Hello! I am your Clinical Decision Support Assistant. "
+                    "I can help with evidence-grounded clinical questions, "
+                    "medication safety, contraindications, warnings, and medical evidence. "
+                    "Please verify findings against the patient's chart and local protocols."
+                    if mode == "doctor"
+                    else get_conversational_greeting(effective_lang)
+                ),
                     verification_status="conversational_greeting",
                     is_grounded=True,
                     is_emergency=False,
@@ -202,6 +209,10 @@ class CDSOrchestrator:
         5. Drug interaction questions with active medications (e.g. Ibuprofen + Amlodipine)
         """
         discharge_instructions = ""
+        medication_instructions = ""
+        discharge_summary = ""
+        diet_instructions = ""
+        activity_instructions = ""
         warning_signs = ""
         follow_up_instructions = ""
         follow_up_date = ""
@@ -209,11 +220,27 @@ class CDSOrchestrator:
 
         dc = getattr(patient_context, "discharge_context", None)
         if isinstance(dc, dict):
-            discharge_instructions = dc.get("discharge_instructions") or ""
-            warning_signs = dc.get("warning_signs") or ""
-            follow_up_instructions = dc.get("follow_up_instructions") or ""
-            follow_up_date = dc.get("follow_up_date") or ""
-            discharge_diagnosis = dc.get("diagnosis") or ""
+            discharge_instructions = str(dc.get("discharge_instructions") or "").strip()
+            medication_instructions = str(dc.get("medication_instructions") or "").strip()
+            discharge_summary = str(dc.get("summary") or "").strip()
+            warning_signs = str(dc.get("warning_signs") or "").strip()
+            follow_up_instructions = str(dc.get("follow_up_instructions") or "").strip()
+            follow_up_date = str(dc.get("follow_up_date") or "").strip()
+            discharge_diagnosis = str(dc.get("diagnosis") or "").strip()
+            records = dc.get("discharge_records") or []
+            if isinstance(records, list):
+                for record in records:
+                    if not isinstance(record, dict):
+                        continue
+                    discharge_instructions = discharge_instructions or str(record.get("instructions") or "").strip()
+                    medication_instructions = medication_instructions or str(record.get("medication_instructions") or "").strip()
+                    discharge_summary = discharge_summary or str(record.get("summary") or "").strip()
+                    warning_signs = warning_signs or str(record.get("warning_signs") or "").strip()
+                    follow_up_instructions = follow_up_instructions or str(record.get("follow_up") or "").strip()
+                    follow_up_date = follow_up_date or str(record.get("follow_up_date") or "").strip()
+                    discharge_diagnosis = discharge_diagnosis or str(record.get("diagnosis") or "").strip()
+                    diet_instructions = diet_instructions or str(record.get("diet") or "").strip()
+                    activity_instructions = activity_instructions or str(record.get("activity") or "").strip()
 
         for item in (patient_context.medical_history or []):
             s = str(item).strip()
@@ -247,6 +274,7 @@ class CDSOrchestrator:
 
         meds_summary = ", ".join(active_meds) if active_meds else (discharge_instructions or "")
         q_lower = query_text.lower()
+        canonical_lower = str(canon_info.get("canonical_query") or "").lower()
 
         discharge_citation = CDSCitation(
             source_index=1,
@@ -257,6 +285,112 @@ class CDSOrchestrator:
             chunk_id="",
             score=1.0
         )
+
+        def finish_discharge_response(response):
+            # Discharge summaries come from authorized EHR records.
+            # Do not run them through the generic drug-monograph localizer.
+            if effective_lang == "en":
+                return response
+
+            data = response.model_dump()
+            answer = str(data.get("answer") or "")
+
+            translations = {
+                "hi": [
+                    ("Based only on information in your available hospital discharge record:",
+                     "आपके उपलब्ध अस्पताल के डिस्चार्ज रिकॉर्ड में दर्ज जानकारी के आधार पर:"),
+                    ("Your recorded medication instructions state:",
+                     "रिकॉर्ड में दर्ज दवा संबंधी निर्देश:"),
+                    ("Your recorded follow-up information is:",
+                     "रिकॉर्ड में दर्ज फॉलो-अप जानकारी:"),
+                    ("Discharge diagnosis:", "डिस्चार्ज के समय दर्ज निदान:"),
+                    ("Discharge summary:", "डिस्चार्ज सारांश:"),
+                    ("Discharge instructions:", "डिस्चार्ज निर्देश:"),
+                    ("Medication instructions:", "दवा लेने के निर्देश:"),
+                    ("Documented warning signs:", "रिकॉर्ड में दर्ज चेतावनी संकेत:"),
+                    ("Follow-up instructions:", "फॉलो-अप संबंधी निर्देश:"),
+                    ("Follow-up date recorded:", "रिकॉर्ड में दर्ज फॉलो-अप तारीख:"),
+                    ("Diet instructions:", "आहार संबंधी निर्देश:"),
+                    ("Activity instructions:", "गतिविधि संबंधी निर्देश:"),
+                    ("Follow your current prescription label and your treating clinician's instructions. Do not change your dose or schedule based on this chat.",
+                     "अपनी वर्तमान दवा के लेबल और उपचार करने वाले चिकित्सक के निर्देशों का पालन करें। इस चैट के आधार पर खुराक या समय-सारणी न बदलें।"),
+                    ("Confirm appointment and test requirements with your treating hospital.",
+                     "अपॉइंटमेंट और जाँच की आवश्यकताओं की पुष्टि अपने उपचार करने वाले अस्पताल से करें।"),
+                    ("This summary does not add instructions that are not documented. Contact your treating team if anything is missing or unclear.",
+                     "इस सारांश में रिकॉर्ड से बाहर कोई निर्देश नहीं जोड़ा गया है। कोई जानकारी अधूरी या अस्पष्ट हो तो अपनी उपचार टीम से पुष्टि करें।"),
+                    ("The available discharge records do not specify an exact medication timing. Check the current prescription label or contact your treating clinician or pharmacist before changing when or how you take the medicine.",
+                     "उपलब्ध डिस्चार्ज रिकॉर्ड में दवा लेने का निश्चित समय दर्ज नहीं है। दवा लेने का समय या तरीका बदलने से पहले वर्तमान दवा-लेबल देखें या अपने चिकित्सक अथवा फार्मासिस्ट से पुष्टि करें।"),
+                    ("I could not find a documented follow-up appointment or laboratory-test schedule in the available discharge records. Contact your treating hospital to confirm.",
+                     "उपलब्ध डिस्चार्ज रिकॉर्ड में फॉलो-अप अपॉइंटमेंट या लैब जाँच की समय-सारणी नहीं मिली। कृपया अपने अस्पताल से इसकी पुष्टि करें।"),
+                    ("I could not find detailed discharge instructions in the records available to this assistant. Contact your hospital or treating care team to confirm your aftercare plan.",
+                     "इस सहायक को उपलब्ध रिकॉर्ड में विस्तृत डिस्चार्ज निर्देश नहीं मिले। कृपया आगे की देखभाल के निर्देशों की पुष्टि अपने अस्पताल या उपचार टीम से करें।"),
+                ],
+                "mr": [
+                    ("Based only on information in your available hospital discharge record:",
+                     "तुमच्या उपलब्ध रुग्णालयीन डिस्चार्ज नोंदीतील माहितीनुसार:"),
+                    ("Your recorded medication instructions state:",
+                     "नोंदीतील औषधविषयक सूचना:"),
+                    ("Your recorded follow-up information is:",
+                     "नोंदीतील पुढील भेटीची माहिती:"),
+                    ("Discharge diagnosis:", "डिस्चार्जवेळचे निदान:"),
+                    ("Discharge summary:", "डिस्चार्ज सारांश:"),
+                    ("Discharge instructions:", "डिस्चार्ज सूचना:"),
+                    ("Medication instructions:", "औषध घेण्याच्या सूचना:"),
+                    ("Documented warning signs:", "नोंदवलेली धोक्याची लक्षणे:"),
+                    ("Follow-up instructions:", "पुढील भेटीविषयी सूचना:"),
+                    ("Follow-up date recorded:", "नोंदवलेली पुढील भेटीची तारीख:"),
+                    ("Diet instructions:", "आहारविषयक सूचना:"),
+                    ("Activity instructions:", "हालचालीविषयक सूचना:"),
+                    ("Follow your current prescription label and your treating clinician's instructions. Do not change your dose or schedule based on this chat.",
+                     "सध्याच्या औषधाच्या लेबलवरील आणि उपचार करणाऱ्या डॉक्टरांच्या सूचनांचे पालन करा. या चॅटच्या आधारे मात्रा किंवा वेळापत्रक बदलू नका."),
+                    ("Confirm appointment and test requirements with your treating hospital.",
+                     "भेटीची आणि तपासण्यांची आवश्यकता रुग्णालयाकडून निश्चित करून घ्या."),
+                    ("This summary does not add instructions that are not documented. Contact your treating team if anything is missing or unclear.",
+                     "या सारांशात नोंदीबाहेरील सूचना जोडलेल्या नाहीत. माहिती अपुरी किंवा अस्पष्ट असल्यास उपचार करणाऱ्या पथकाशी संपर्क साधा."),
+                    ("The available discharge records do not specify an exact medication timing. Check the current prescription label or contact your treating clinician or pharmacist before changing when or how you take the medicine.",
+                     "उपलब्ध डिस्चार्ज नोंदीत औषध घेण्याची निश्चित वेळ दिलेली नाही. वेळ किंवा पद्धत बदलण्यापूर्वी औषधाचे लेबल तपासा किंवा डॉक्टर अथवा फार्मासिस्टकडून खात्री करा."),
+                    ("I could not find a documented follow-up appointment or laboratory-test schedule in the available discharge records. Contact your treating hospital to confirm.",
+                     "उपलब्ध डिस्चार्ज नोंदीत पुढील भेटीचे किंवा प्रयोगशाळेतील तपासण्यांचे वेळापत्रक आढळले नाही. रुग्णालयाशी संपर्क साधून खात्री करा."),
+                    ("I could not find detailed discharge instructions in the records available to this assistant. Contact your hospital or treating care team to confirm your aftercare plan.",
+                     "या सहाय्यकाला उपलब्ध नोंदीत सविस्तर डिस्चार्ज सूचना आढळल्या नाहीत. पुढील काळजीच्या सूचनांसाठी रुग्णालयाशी किंवा उपचार पथकाशी संपर्क साधा."),
+                ],
+                "gu": [
+                    ("Based only on information in your available hospital discharge record:",
+                     "તમારા ઉપલબ્ધ હોસ્પિટલ ડિસ્ચાર્જ રેકોર્ડમાં નોંધાયેલી માહિતીના આધારે:"),
+                    ("Your recorded medication instructions state:",
+                     "રેકોર્ડમાં નોંધેલી દવા સંબંધિત સૂચનાઓ:"),
+                    ("Your recorded follow-up information is:",
+                     "રેકોર્ડમાં નોંધેલી અનુસરણ મુલાકાતની માહિતી:"),
+                    ("Discharge diagnosis:", "ડિસ્ચાર્જ સમયે નોંધાયેલ નિદાન:"),
+                    ("Discharge summary:", "ડિસ્ચાર્જ સારાંશ:"),
+                    ("Discharge instructions:", "ડિસ્ચાર્જ સૂચનાઓ:"),
+                    ("Medication instructions:", "દવા લેવાની સૂચનાઓ:"),
+                    ("Documented warning signs:", "રેકોર્ડમાં નોંધાયેલા ચેતવણીના સંકેતો:"),
+                    ("Follow-up instructions:", "અનુસરણ મુલાકાત સંબંધિત સૂચનાઓ:"),
+                    ("Follow-up date recorded:", "રેકોર્ડમાં નોંધેલી અનુસરણ તારીખ:"),
+                    ("Diet instructions:", "આહાર સંબંધિત સૂચનાઓ:"),
+                    ("Activity instructions:", "પ્રવૃત્તિ સંબંધિત સૂચનાઓ:"),
+                    ("Follow your current prescription label and your treating clinician's instructions. Do not change your dose or schedule based on this chat.",
+                     "વર્તમાન દવાના લેબલ અને સારવાર કરતા ડૉક્ટરની સૂચનાઓનું પાલન કરો. આ ચેટના આધારે દવાની માત્રા અથવા સમયપત્રક બદલશો નહીં."),
+                    ("Confirm appointment and test requirements with your treating hospital.",
+                     "મુલાકાત અને તપાસની જરૂરિયાતોની તમારા સારવાર કરતા હોસ્પિટલ સાથે પુષ્ટિ કરો."),
+                    ("This summary does not add instructions that are not documented. Contact your treating team if anything is missing or unclear.",
+                     "આ સારાંશમાં રેકોર્ડમાં ન હોય તેવી સૂચનાઓ ઉમેરવામાં આવી નથી. કોઈ માહિતી અધૂરી કે અસ્પષ્ટ હોય તો તમારી સારવાર ટીમની પુષ્ટિ લો."),
+                    ("The available discharge records do not specify an exact medication timing. Check the current prescription label or contact your treating clinician or pharmacist before changing when or how you take the medicine.",
+                     "ઉપલબ્ધ ડિસ્ચાર્જ રેકોર્ડમાં દવા લેવાનો ચોક્કસ સમય નોંધાયેલો નથી. સમય અથવા રીત બદલતા પહેલાં દવાનું લેબલ તપાસો અથવા તમારા ડૉક્ટર કે ફાર્માસિસ્ટની સલાહ લો."),
+                    ("I could not find a documented follow-up appointment or laboratory-test schedule in the available discharge records. Contact your treating hospital to confirm.",
+                     "ઉપલબ્ધ ડિસ્ચાર્જ રેકોર્ડમાં અનુસરણ મુલાકાત અથવા લેબ તપાસનું સમયપત્રક મળ્યું નથી. તમારી હોસ્પિટલનો સંપર્ક કરીને પુષ્ટિ કરો."),
+                    ("I could not find detailed discharge instructions in the records available to this assistant. Contact your hospital or treating care team to confirm your aftercare plan.",
+                     "આ સહાયકને ઉપલબ્ધ રેકોર્ડમાં વિગતવાર ડિસ્ચાર્જ સૂચનાઓ મળી નથી. આગળની સંભાળ માટે તમારી હોસ્પિટલ અથવા સારવાર ટીમનો સંપર્ક કરો."),
+                ],
+            }
+
+            for old, new in translations.get(effective_lang, []):
+                answer = answer.replace(old, new)
+
+            data["answer"] = answer
+            data["language"] = effective_lang
+            return CDSEvaluateResponse(**data)
 
         # -------------------------------------------------------------
         # TOPIC 1: Medication Timing & Administration Schedule
@@ -275,6 +409,54 @@ class CDSOrchestrator:
             len(canon_info.get("extracted_drugs", [])) > 0
             and any(w in query_text for w in ["कब", "कधी", "ક્યારે", "समय", "वेळ", "टाइम"])
         )
+
+        if is_med_timing:
+            if medication_instructions:
+                answer = (
+                    "Your recorded medication instructions state:\n\n"
+                    f"{medication_instructions}\n\n"
+                    "Follow your current prescription label and your treating clinician's instructions. "
+                    "Do not change your dose or schedule based on this chat."
+                )
+                response = CDSEvaluateResponse(
+                    clinical_query=query_text,
+                    answer=answer,
+                    verification_status="verified_grounded",
+                    is_grounded=True,
+                    is_emergency=False,
+                    abstained=False,
+                    citations=[discharge_citation],
+                    drug_interactions=detected_interactions,
+                    safety_alerts=safety_alerts,
+                    abstention_reason=None,
+                    execution_mode="patient",
+                    pipeline_mode="discharge_care_grounding",
+                    language=effective_lang,
+                    detected_language=detected_lang,
+                    canonical_query=canon_info["canonical_query"] if canon_info["was_canonicalized"] else None
+                )
+                return finish_discharge_response(response)
+
+            response = CDSEvaluateResponse(
+                clinical_query=query_text,
+                answer=("The available discharge records do not specify an exact medication timing. "
+                        "Check the current prescription label or contact your treating clinician or pharmacist "
+                        "before changing when or how you take the medicine."),
+                verification_status="insufficient_context",
+                is_grounded=False,
+                is_emergency=False,
+                abstained=True,
+                citations=[],
+                drug_interactions=detected_interactions,
+                safety_alerts=safety_alerts,
+                abstention_reason="Exact medication timing is not documented in the available discharge records.",
+                execution_mode="patient",
+                pipeline_mode="discharge_care_grounding",
+                language=effective_lang,
+                detected_language=detected_lang,
+                canonical_query=canon_info["canonical_query"] if canon_info["was_canonicalized"] else None
+            )
+            return finish_discharge_response(response)
 
         if is_med_timing and (discharge_instructions or active_meds):
             ins = discharge_instructions or f"Take {meds_summary} in the morning with water."
@@ -395,6 +577,40 @@ class CDSOrchestrator:
             or any(w in query_text for w in ["फॉलो-अप", "अपॉइंटमेंट", "जांच", "टेस्ट", "तपासणी", "भेट", "એપોઇન્ટમેન્ટ", "ટેસ્ટ"])
         )
 
+        if is_follow_up_query:
+            details = []
+            if follow_up_instructions:
+                details.append(f"Documented follow-up instructions: {follow_up_instructions}")
+            if follow_up_date:
+                details.append(f"Follow-up date recorded: {follow_up_date}")
+            if details:
+                answer = ("Your recorded follow-up information is:\n\n- " + "\n- ".join(details) +
+                          "\n\nConfirm appointment and test requirements with your treating hospital.")
+                response = CDSEvaluateResponse(
+                    clinical_query=query_text, answer=answer,
+                    verification_status="verified_grounded", is_grounded=True,
+                    is_emergency=False, abstained=False, citations=[discharge_citation],
+                    drug_interactions=detected_interactions, safety_alerts=safety_alerts,
+                    abstention_reason=None, execution_mode="patient",
+                    pipeline_mode="discharge_care_grounding", language=effective_lang,
+                    detected_language=detected_lang,
+                    canonical_query=canon_info["canonical_query"] if canon_info["was_canonicalized"] else None
+                )
+            else:
+                response = CDSEvaluateResponse(
+                    clinical_query=query_text,
+                    answer=("I could not find a documented follow-up appointment or laboratory-test schedule "
+                            "in the available discharge records. Contact your treating hospital to confirm."),
+                    verification_status="insufficient_context", is_grounded=False,
+                    is_emergency=False, abstained=True, citations=[],
+                    drug_interactions=detected_interactions, safety_alerts=safety_alerts,
+                    abstention_reason="Follow-up details are not documented in the available discharge records.",
+                    execution_mode="patient", pipeline_mode="discharge_care_grounding",
+                    language=effective_lang, detected_language=detected_lang,
+                    canonical_query=canon_info["canonical_query"] if canon_info["was_canonicalized"] else None
+                )
+            return finish_discharge_response(response)
+
         if is_follow_up_query and (follow_up_instructions or follow_up_date):
             f_date_str = f" (Scheduled Date: {follow_up_date})" if follow_up_date else ""
             if effective_lang == "hi":
@@ -449,8 +665,64 @@ class CDSOrchestrator:
         # -------------------------------------------------------------
         is_discharge_overview = (
             ("discharge" in q_lower and any(w in q_lower for w in ["instruction", "instructions", "summary", "understand", "tell", "explain", "about"]))
+            or any(w in canonical_lower for w in [
+                "chhutti ke bad", "chhutti ke baad", "kin baton ka dhyan",
+                "dhyan rkhna chahie", "dhyan rakhna chahiye",
+                "hospital se chhutti", "aspatal se ghar",
+                "discharge ke bad", "discharge ke baad"
+            ])
             or any(w in query_text for w in ["डिस्चार्ज निर्देश", "डिस्चार्ज के बारे", "डिस्चार्ज सूचना", "डिस्चार्ज बद्दल", "ડિસ્ચાર્જ સૂચનાઓ", "ડિસ્ચાર્જ વિશે"])
         )
+
+        if is_discharge_overview:
+            details = []
+            if discharge_diagnosis:
+                details.append(f"Discharge diagnosis: {discharge_diagnosis}")
+            if discharge_summary:
+                details.append(f"Discharge summary: {discharge_summary}")
+            if discharge_instructions:
+                details.append(f"Discharge instructions: {discharge_instructions}")
+            if medication_instructions:
+                details.append(f"Medication instructions: {medication_instructions}")
+            if warning_signs:
+                details.append(f"Documented warning signs: {warning_signs}")
+            if follow_up_instructions:
+                details.append(f"Follow-up instructions: {follow_up_instructions}")
+            if follow_up_date:
+                details.append(f"Follow-up date recorded: {follow_up_date}")
+            if diet_instructions:
+                details.append(f"Diet instructions: {diet_instructions}")
+            if activity_instructions:
+                details.append(f"Activity instructions: {activity_instructions}")
+            if details:
+                answer = ("Based only on information in your available hospital discharge record:\n\n- "
+                          + "\n- ".join(details)
+                          + "\n\nThis summary does not add instructions that are not documented. "
+                          "Contact your treating team if anything is missing or unclear.")
+                response = CDSEvaluateResponse(
+                    clinical_query=query_text, answer=answer,
+                    verification_status="verified_grounded", is_grounded=True,
+                    is_emergency=False, abstained=False, citations=[discharge_citation],
+                    drug_interactions=detected_interactions, safety_alerts=safety_alerts,
+                    abstention_reason=None, execution_mode="patient",
+                    pipeline_mode="discharge_care_grounding", language=effective_lang,
+                    detected_language=detected_lang,
+                    canonical_query=canon_info["canonical_query"] if canon_info["was_canonicalized"] else None
+                )
+            else:
+                response = CDSEvaluateResponse(
+                    clinical_query=query_text,
+                    answer=("I could not find detailed discharge instructions in the records available to this assistant. "
+                            "Contact your hospital or treating care team to confirm your aftercare plan."),
+                    verification_status="insufficient_context", is_grounded=False,
+                    is_emergency=False, abstained=True, citations=[],
+                    drug_interactions=detected_interactions, safety_alerts=safety_alerts,
+                    abstention_reason="Detailed discharge instructions are not present in the available records.",
+                    execution_mode="patient", pipeline_mode="discharge_care_grounding",
+                    language=effective_lang, detected_language=detected_lang,
+                    canonical_query=canon_info["canonical_query"] if canon_info["was_canonicalized"] else None
+                )
+            return finish_discharge_response(response)
 
         if is_discharge_overview and (discharge_instructions or discharge_diagnosis):
             f_date_str = f" (Scheduled: {follow_up_date})" if follow_up_date else ""
@@ -758,7 +1030,7 @@ class CDSOrchestrator:
         if emergency_alert:
             early_res = CDSEvaluateResponse(
                 clinical_query=query_text,
-                answer="🚨 **MEDICAL EMERGENCY DETECTED** 🚨\n\nYour description suggests symptoms that may require **immediate medical attention**.",
+                answer="🚨 **MEDICAL EMERGENCY DETECTED** 🚨\n\nIf this is happening in a healthcare facility, activate its emergency/code-blue response immediately. Otherwise, call emergency services now (112 in India; elsewhere, your local emergency number).\n\nIf the person is unresponsive and not breathing normally or is only gasping, begin CPR immediately and ask someone to bring an AED. Put the phone on speaker and follow emergency-dispatcher or clinical-team instructions.\n\nFor an adult, push hard and fast in the center of the chest at 100–120 compressions per minute, at least 5 cm (2 inches) deep, allowing full chest recoil. Use an AED as soon as available and follow its prompts. If untrained to give rescue breaths, hands-only CPR is recommended for an adult. Follow age-appropriate protocols for children and infants.\n\nDo not give food, drink, or medication. Do not delay emergency response to continue this chat.",
                 verification_status="emergency_diverted",
                 is_grounded=False,
                 is_emergency=True,
@@ -936,9 +1208,59 @@ class CDSOrchestrator:
             verification_status = "abstained_policy"
             abstained = True
 
-        # Map Citations
+        # GENERAL HYPOGLYCEMIA CITATION FILTER
+        answer_text = rag_res.get("answer", "")
+        query_lower = query_text.lower()
+        source_candidates = list(rag_res.get("sources") or [])
+
+        general_hypoglycemia_question = (
+            "hypoglyc" in query_lower
+            and any(term in query_lower for term in (
+                "warning sign", "symptom", "recognize", "recognise",
+                "assessment", "immediate steps",
+            ))
+        )
+
+        explicitly_named_medication = False
+        for source in source_candidates:
+            if not isinstance(source, dict):
+                continue
+
+            source_title = str(source.get("title", ""))
+            section_specific = any(marker in source_title.lower() for marker in (
+                "overdosage", "drug interactions", "boxed warning",
+                "warnings & precautions", "contraindications",
+            ))
+
+            if section_specific and " - " in source_title:
+                source_entity = source_title.split(" - ", 1)[0].strip().lower()
+                if source_entity and re.search(
+                    r"\b" + re.escape(source_entity) + r"\b",
+                    query_lower,
+                ):
+                    explicitly_named_medication = True
+                    break
+
+        filter_hypoglycemia_citations = (
+            general_hypoglycemia_question and not explicitly_named_medication
+        )
+
+        if filter_hypoglycemia_citations:
+            source_candidates = [
+                source for source in source_candidates
+                if isinstance(source, dict)
+                and "hypoglyc" in " ".join(
+                    str(source.get(key, ""))
+                    for key in (
+                        "title", "qtype", "chunk_id", "source_name",
+                        "publisher", "document_id",
+                    )
+                ).lower()
+            ]
+
+        # Map only the remaining citations for this general hypoglycemia query.
         citations: List[CDSCitation] = []
-        for src in rag_res.get("sources", []):
+        for src in source_candidates:
             if isinstance(src, dict):
                 # Patient Mode: Omit internal system traces (chunk_ids and raw retrieval scores)
                 chunk_id_val = "" if request.mode == "patient" else str(src.get("chunk_id", ""))
@@ -946,7 +1268,7 @@ class CDSOrchestrator:
                 qtype_val = None if request.mode == "patient" else src.get("qtype")
 
                 citations.append(CDSCitation(
-                    source_index=src.get("source_index", len(citations) + 1),
+                    source_index=(len(citations) + 1 if filter_hypoglycemia_citations else src.get("source_index", len(citations) + 1)),
                     title=src.get("title", "Clinical Evidence"),
                     source_name=src.get("source_name", "Authoritative Guideline"),
                     publisher=src.get("publisher", "Medical Authority"),
@@ -956,7 +1278,6 @@ class CDSOrchestrator:
                     score=score_val
                 ))
 
-        answer_text = rag_res.get("answer", "")
         abstention_reason = None
 
         # When deterministic drug-drug interactions are verified, provide the clinical safety alert
@@ -996,12 +1317,84 @@ class CDSOrchestrator:
             elif is_coprescribe_query:
                 top_alert = detected_interactions[0]
                 pair_label = " + ".join(top_alert.drug_pair)
-                safety_summary = (
-                    f"**Clinical Drug Interaction Alert ({top_alert.severity.upper()}): {pair_label}**\n\n"
-                    f"• **Finding**: {top_alert.explanation}\n"
-                    f"• **Recommended Clinical Action**: {top_alert.clinical_action}\n\n"
-                    f"*Authoritative Reference: Verified Clinical Drug Safety Rule ({top_alert.rule_id})*"
+                _alert_lang = str(effective_lang or "en").strip().lower().split("-")[0]
+                _alert_drugs = {
+                    str(drug).strip().lower()
+                    for drug in (top_alert.drug_pair or [])
+                }
+
+                _interaction_i18n = {
+                    "hi": {
+                        "title": "दवाओं के बीच गंभीर परस्पर प्रभाव की चेतावनी",
+                        "finding_label": "जोखिम",
+                        "finding": (
+                            "एस्पिरिन और वारफारिन को साथ लेने से पेट या आंतों तथा "
+                            "मस्तिष्क में गंभीर रक्तस्राव का जोखिम बढ़ सकता है।"
+                        ),
+                        "action_label": "सुझाई गई कार्रवाई",
+                        "action": (
+                            "इन दवाओं को साथ लेने के बारे में अपने डॉक्टर या फार्मासिस्ट "
+                            "से जल्द पुष्टि करें। यदि दोनों दवाएँ पहले से लिखी गई हैं, "
+                            "तो स्वयं कोई दवा बंद न करें और न ही खुराक बदलें। डॉक्टर की "
+                            "निगरानी में INR और हीमोग्लोबिन की जाँच आवश्यक हो सकती है।"
+                        ),
+                        "reference": "सत्यापित औषधि-सुरक्षा नियम",
+                    },
+                    "mr": {
+                        "title": "औषधांमधील गंभीर परस्परसंवादाचा इशारा",
+                        "finding_label": "धोका",
+                        "finding": (
+                            "ॲस्पिरिन आणि वॉरफरिन एकत्र घेतल्याने पोट किंवा आतड्यांमध्ये "
+                            "तसेच मेंदूमध्ये गंभीर रक्तस्रावाचा धोका वाढू शकतो."
+                        ),
+                        "action_label": "शिफारस केलेली कृती",
+                        "action": (
+                            "ही औषधे एकत्र घेण्याबाबत आपल्या डॉक्टर किंवा फार्मासिस्टकडून "
+                            "लवकर पुष्टी घ्या. दोन्ही औषधे आधीच लिहून दिली असतील, तर "
+                            "स्वतःहून कोणतेही औषध बंद करू नका किंवा मात्रा बदलू नका. "
+                            "डॉक्टरांच्या देखरेखीखाली INR आणि हिमोग्लोबिनची तपासणी "
+                            "आवश्यक असू शकते."
+                        ),
+                        "reference": "पडताळलेला औषध-सुरक्षा नियम",
+                    },
+                    "gu": {
+                        "title": "દવાઓ વચ્ચેની ગંભીર ક્રિયાપ્રતિક્રિયાની ચેતવણી",
+                        "finding_label": "જોખમ",
+                        "finding": (
+                            "એસ્પિરિન અને વૉરફરિન સાથે લેવાથી પેટ અથવા આંતરડાં તેમજ "
+                            "મગજમાં ગંભીર રક્તસ્રાવનું જોખમ વધી શકે છે."
+                        ),
+                        "action_label": "સૂચિત પગલું",
+                        "action": (
+                            "આ દવાઓ સાથે લેવા અંગે તમારા ડૉક્ટર અથવા ફાર્માસિસ્ટની વહેલી "
+                            "સલાહ લો. જો બંને દવાઓ પહેલેથી લખી આપવામાં આવી હોય, તો "
+                            "પોતાની રીતે કોઈ દવા બંધ ન કરો કે માત્રા ન બદલો. ડૉક્ટરની "
+                            "દેખરેખ હેઠળ INR અને હિમોગ્લોબિનની તપાસ જરૂરી હોઈ શકે છે."
+                        ),
+                        "reference": "ચકાસાયેલ દવા-સુરક્ષા નિયમ",
+                    },
+                }
+
+                _is_aspirin_warfarin_rule = (
+                    str(top_alert.rule_id).strip().upper() == "RUL-INT-001"
+                    and {"aspirin", "warfarin"}.issubset(_alert_drugs)
                 )
+
+                if _alert_lang in _interaction_i18n and _is_aspirin_warfarin_rule:
+                    _t = _interaction_i18n[_alert_lang]
+                    safety_summary = (
+                        f"**{_t['title']}: {pair_label}**\n\n"
+                        f"• **{_t['finding_label']}**: {_t['finding']}\n"
+                        f"• **{_t['action_label']}**: {_t['action']}\n\n"
+                        f"*{_t['reference']} ({top_alert.rule_id})*"
+                    )
+                else:
+                    safety_summary = (
+                        f"**Clinical Drug Interaction Alert ({top_alert.severity.upper()}): {pair_label}**\n\n"
+                        f"• **Finding**: {top_alert.explanation}\n"
+                        f"• **Recommended Clinical Action**: {top_alert.clinical_action}\n\n"
+                        f"*Authoritative Reference: Verified Clinical Drug Safety Rule ({top_alert.rule_id})*"
+                    )
                 # Overwrite answer strictly with authoritative rule-engine text (dropping unverified generative claims)
                 answer_text = safety_summary
                 verification_status = "grounded"

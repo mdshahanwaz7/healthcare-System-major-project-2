@@ -347,11 +347,28 @@ class EvidencePolicyEngine:
         # Out of domain check:
         # A query is out of domain if substantive query word overlap is extremely low (< 35%),
         # or if subject tokens exist and either none matched or fewer than 35% of them matched with no clinical intent.
-        has_clinical_intent = any(w in GENERAL_CLINICAL_TERMS for w in query_words)
+        # Detect clinical intent from the unfiltered query too. The substantive
+        # overlap list excludes some defining medical terms such as hypoglycemia.
+        raw_query_words = set(re.findall(r"\b[a-zA-Z][a-zA-Z'-]{2,}\b", query.lower()))
+        explicit_clinical_cues = {
+            "clinical", "clinician", "medical", "patient", "patients",
+            "diabetes", "diabetic", "hypoglycemia", "hypoglycemic", "glucose",
+            "insulin", "symptom", "symptoms", "sign", "signs", "assessment",
+            "triage", "medication", "medications",
+            "medicine", "medicines", "drug", "drugs", "contraindication",
+            "contraindications", "dosage", "dose", "hypertension", "renal",
+            "kidney", "hepatic", "liver", "blood", "pressure", "adverse",
+            "reaction", "reactions", "treatment", "diagnosis", "diagnostic",
+            "warning", "warnings", "emergency", "stroke", "seizure", "fever"
+        }
+        has_clinical_intent = (
+            any(w in GENERAL_CLINICAL_TERMS for w in query_words)
+            or bool(raw_query_words.intersection(explicit_clinical_cues))
+        )
         subject_match_ratio = (len(matched_tokens) / len(subject_tokens)) if subject_tokens else 1.0
         is_out_of_domain = bool(
             query_words and (
-                overlap_ratio < 0.35 or
+                (overlap_ratio < 0.35 and not has_clinical_intent) or
                 (not has_clinical_intent and subject_match_ratio < 0.5)
             )
         )

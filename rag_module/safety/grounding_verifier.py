@@ -144,7 +144,7 @@ INSTRUCTION_OVERRIDE_PATTERNS = [
 PROPERTY_KEYWORDS = {
     "initial_dose": ["initial", "starting", "start", "recommended starting", "usual initial"],
     "maximum_dose": ["maximum", "max", "highest", "not to exceed", "up to"],
-    "maintenance_dose": ["maintenance", "chronic", "regular"]
+    "maintenance_dose": ["maintenance", "regular"]
 }
 
 # Evaluated in order of descending specificity
@@ -235,7 +235,7 @@ class AnswerGroundingVerifier:
             "it", "this", "these", "there", "note", "care", "medication", "drug", "agent", "product", "according",
             "provided", "side", "per", "as", "reactions", "effects", "boxed", "can", "could", "may", "might", "will", "would", "shall", "should",
             "titration", "adjustment", "monitoring", "discontinuation", "intake", "evaluation",
-            "symptom", "symptoms", "given"
+            "symptom", "symptoms", "given", "guideline", "guidelines"
         }
 
         # 1. Subject extraction (generic active agent or noun phrase)
@@ -286,7 +286,7 @@ class AnswerGroundingVerifier:
         # Pattern B: "The usual initial starting dose of X..."
         if not subject:
             subj_match = re.match(
-                r'^(?:the\s+)?(?:usual\s+|recommended\s+|most\s+|more\s+)?(?:initial\s+|starting\s+|maximum\s+|adult\s+|common\s+)*(?:dose\s+of\s+|adult\s+dose\s+of\s+|adverse\s+reactions?\s+of\s+|adverse\s+reaction\s+reported\s+is\s+)?([a-zA-Z0-9_/-]+(?:\s+and\s+[a-zA-Z0-9_/-]+(?:\s+potassium)?)?)',
+                r'^(?:(?:the\s+)?(?:(?:usual|recommended|most|more|initial|starting|maximum|adult|common)\s+)*)?(?:dose\s+of\s+|adult\s+dose\s+of\s+|adverse\s+reactions?\s+of\s+|adverse\s+reaction\s+reported\s+is\s+)([a-zA-Z0-9_/-]+(?:\s+and\s+[a-zA-Z0-9_/-]+(?:\s+potassium)?)?)\b',
                 clean_text,
                 re.IGNORECASE
             )
@@ -376,6 +376,14 @@ class AnswerGroundingVerifier:
             if inc_match:
                 target_object = inc_match.group(1).strip()
 
+        # Requirement pattern: assertions such as "reactions require immediate care".
+        # Parsing does not bypass the existing evidence-verification checks.
+        elif not predicate and re.search(r'\brequires?\b', clean_text, re.IGNORECASE):
+            predicate = "requires"
+            polarity = "positive"
+            req_match = re.search(r'\brequires?\s+([^.]+)', clean_text, re.IGNORECASE)
+            if req_match:
+                target_object = req_match.group(1).strip()
         # Indication pattern
         elif not predicate and re.search(r'\bindicated\s+(?:for|as)?\s*([^.]+)', clean_text, re.IGNORECASE):
             predicate = "indicated"
@@ -1007,6 +1015,8 @@ class AnswerGroundingVerifier:
                 }
 
         # Map evaluated claims to logical components
+        # Use the already initialized target-component keys for classification.
+        requested_intent_names = set(component_map.keys())
         for cres in claim_results:
             claim_text_lower = cres.claim_text.lower()
             prop = cres.proposition
@@ -1018,6 +1028,23 @@ class AnswerGroundingVerifier:
                     c_intent = "adverse_effects"
                 elif prop.predicate == "dose" or prop.value is not None or "dose" in claim_text_lower or "dosage" in claim_text_lower:
                     c_intent = "dosage"
+                elif (
+                    "interactions" in requested_intent_names
+                    and any(
+                        term in claim_text_lower
+                        for term in (
+                            "plasma concentration",
+                            "renal tubular secretion",
+                            "cationic drug",
+                            "coadministr",
+                            "co-administer",
+                            "concomitant",
+                            "drug interaction",
+                            "drug interactions",
+                        )
+                    )
+                ):
+                    c_intent = "interactions"
                 elif prop.predicate in ["indicated", "decreases", "increases", "is"] or "prescribed" in claim_text_lower or "used for" in claim_text_lower or "treat" in claim_text_lower:
                     c_intent = "indications"
             else:

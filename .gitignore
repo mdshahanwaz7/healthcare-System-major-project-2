@@ -88,3 +88,38 @@ Dump*.sql
 scratch/mysql_data/
 **/uploads/prescriptions/*
 scratch/window_dump.xml
+# Local backup files
+*.bak
+*.bak_*
+*.backup*
+*.before_*.bak
+
+# Local logs and diagnostic results
+*.log
+logs/
+doctor_hypoglycemia*.json
+metformin_trace_debug.json
+
+# Local patch and debugging scripts
+/fix_assistant_header_and_scrolling.py
+/fix_patient_dashboard_layout.py
+/fix_sidebar_only.py
+/match_doctor_send_font.py
+/patch_chat_theme_and_scroll.py
+/patch_interaction_localization.py
+/patch_interaction_response_display.py
+/restore_previous_patient_layout.py
+/update_chat_button_colors.py
+
+# Accidental local artifact
+/-Recurse
+
+# Keep local environment secrets out of Git
+.env
+.env.*
+!.env.example
+
+# Editor and rollback snapshots
+*.before_*
+*.bak*
+*.backup*
