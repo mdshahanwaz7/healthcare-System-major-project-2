@@ -4157,3 +4157,63 @@ body :is(p, li, label, td, th) {
   }
 }
 /* DOCTOR DIRECTORY TABLE VIEW CSS END */
+
+/* PATIENT PORTAL LANGUAGE CSS V2 */
+.patient-topbar-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.patient-language-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 9px;
+  border: 1px solid #d9e9df;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .96);
+  box-shadow: 0 5px 18px rgba(38, 93, 61, .07);
+  box-sizing: border-box;
+}
+
+.patient-language-switcher label {
+  color: #35634a;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.patient-language-select {
+  min-width: 154px;
+  min-height: 38px;
+  padding: 7px 29px 7px 11px;
+  border: 1px solid #cfe3d6;
+  border-radius: 9px;
+  outline: none;
+  background: #f9fcfa;
+  color: #285b3d;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.patient-language-select:focus {
+  border-color: #319263;
+  box-shadow: 0 0 0 3px rgba(49, 146, 99, .13);
+}
+
+@media (max-width: 760px) {
+  .patient-topbar-right { gap: 8px; justify-content: flex-start; }
+  .patient-language-switcher { gap: 7px; padding: 5px 7px; }
+  .patient-language-select { min-width: 125px; font-size: 13px; }
+}
+
+@media (max-width: 480px) {
+  .patient-language-switcher { max-width: 100%; }
+  .patient-language-select { min-width: 0; max-width: 190px; width: auto; }
+}
+/* PATIENT PORTAL LANGUAGE CSS V2 END */
