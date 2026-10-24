@@ -73,9 +73,20 @@ function DoctorEmpty({ symbol = "▧", title, detail }) {
   );
 }
 
-function DoctorStat({ label, value, icon, detail }) {
+function DoctorStat({ label, value, icon, detail, onClick }) {
   return (
-    <article className="doc-stat">
+    <article
+      className={`doc-stat ${onClick ? "doc-stat--interactive" : ""}`}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClick();
+        }
+      } : undefined}
+    >
       <div className="doc-stat-header">
         <span>{label}</span><i>{icon}</i>
       </div>
@@ -110,6 +121,16 @@ function RecordCards({ items, kind, emptyTitle, emptyDetail }) {
                 <div key={key}><dt>{friendlyKey(key)}</dt><dd>{valueText(value)}</dd></div>
               ))}
             </dl>
+            {entries.length > 14 && (
+              <details className="doc-record-more">
+                <summary>Show {entries.length - 14} additional fields</summary>
+                <dl>
+                  {entries.slice(14).map(([key, value]) => (
+                    <div key={key}><dt>{friendlyKey(key)}</dt><dd>{valueText(value)}</dd></div>
+                  ))}
+                </dl>
+              </details>
+            )}
             {Array.isArray(item.medicines) && item.medicines.length > 0 && (
               <div className="doc-medicine-list">
                 <strong>Medicines</strong>
@@ -615,10 +636,10 @@ export default function DoctorWorkspace({ user, onLogout }) {
         </div>
 
         <div className="doc-stats-grid">
-          <DoctorStat icon="♙" label="MY PATIENTS" value={summary.patients ?? "—"} detail="Patients linked to your care" />
-          <DoctorStat icon="▦" label="APPOINTMENTS" value={summary.appointments ?? "—"} detail={`${summary.scheduledAppointments ?? 0} currently scheduled`} />
-          <DoctorStat icon="✚" label="PRESCRIPTIONS" value={summary.prescriptions ?? "—"} detail="Your recorded prescriptions" />
-          <DoctorStat icon="♡" label="DISCHARGE CARE" value={summary.discharges ?? "—"} detail="Your discharge records" />
+          <DoctorStat icon="♙" label="MY PATIENTS" value={summary.patients ?? "—"} detail="Patients linked to your care" onClick={() => goTo("patients")} />
+          <DoctorStat icon="▦" label="APPOINTMENTS" value={summary.appointments ?? "—"} detail={`${summary.scheduledAppointments ?? 0} currently scheduled`} onClick={() => goTo("appointments")} />
+          <DoctorStat icon="✚" label="PRESCRIPTIONS" value={summary.prescriptions ?? "—"} detail="Your recorded prescriptions" onClick={() => goTo("prescriptions")} />
+          <DoctorStat icon="♡" label="DISCHARGE CARE" value={summary.discharges ?? "—"} detail="Your discharge records" onClick={() => goTo("care")} />
         </div>
 
         <div className="doc-section-heading">
@@ -719,6 +740,8 @@ export default function DoctorWorkspace({ user, onLogout }) {
                 <div className="patient-details-item patient-details-full"><span>Address</span><strong>{selectedPatient.address || "Not provided"}</strong></div>
               </div>
               <div className="patient-details-footer">
+                <button type="button" className="doc-outline-button" onClick={() => { setPrescriptionForm((current) => ({ ...current, patientId: String(selectedPatient.patient_id) })); setSelectedPatient(null); goTo("prescriptions"); }}>Create prescription for this patient</button>
+                <button type="button" className="doc-outline-button" onClick={() => { setDischargeForm((current) => ({ ...current, patientId: String(selectedPatient.patient_id) })); setSelectedPatient(null); goTo("care"); }}>Start discharge record</button>
                 <button type="button" className="patient-modal-done" onClick={() => setSelectedPatient(null)}>Close details</button>
               </div>
             </section>

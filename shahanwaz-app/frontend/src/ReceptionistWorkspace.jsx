@@ -72,9 +72,20 @@ function TableEmpty({ text }) {
   );
 }
 
-function FrontDeskStat({ icon, label, value, detail, tone }) {
+function FrontDeskStat({ icon, label, value, detail, tone, onClick }) {
   return (
-    <article className={`front-stat-card ${tone || ""}`}>
+    <article
+      className={`front-stat-card ${tone || ""} ${onClick ? "front-stat-card--interactive" : ""}`}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClick();
+        }
+      } : undefined}
+    >
       <div className="front-stat-top">
         <span className="front-stat-icon">{icon}</span>
         <span className="front-stat-overline">{label}</span>
@@ -97,6 +108,8 @@ export default function ReceptionistWorkspace({ user, onLogout }) {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [doctors, setDoctors] = useState([]);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [doctorSearch, setDoctorSearch] = useState("");
   const [doctorApplications, setDoctorApplications] = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [search, setSearch] = useState("");
@@ -317,6 +330,13 @@ export default function ReceptionistWorkspace({ user, onLogout }) {
     ].some((value) => String(value || "").toLowerCase().includes(term));
   });
 
+  const filteredDoctors = doctors.filter((doctor) => {
+    const term = doctorSearch.trim().toLowerCase();
+    if (!term) return true;
+    return [doctor.full_name, doctor.email, doctor.phone, doctor.doctor_id,
+      doctor.specialization, doctor.doctor_type, doctor.qualification]
+      .some((value) => String(value ?? "").toLowerCase().includes(term));
+  });
   const sectionTitle = {
     dashboard: "Dashboard",
     patients: "Patients",
@@ -326,6 +346,7 @@ export default function ReceptionistWorkspace({ user, onLogout }) {
 
   function renderAppointments(rows, recent = false) {
     return (
+      <>
       <div className="front-table-wrap">
         <table className="front-table">
           <thead>
@@ -341,7 +362,7 @@ export default function ReceptionistWorkspace({ user, onLogout }) {
           </thead>
           <tbody>
             {rows.length ? rows.map((appointment) => (
-              <tr key={appointment.appointment_id}>
+              <tr key={appointment.appointment_id} className="front-clickable-row" tabIndex={0} onClick={() => setSelectedAppointment(appointment)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedAppointment(appointment); } }}>
                 <td>
                   <div className="front-person-cell">
                     <span className="front-mini-avatar">
@@ -369,7 +390,7 @@ export default function ReceptionistWorkspace({ user, onLogout }) {
                       <button
                         type="button"
                         className="front-text-action danger"
-                        onClick={() => cancelAppointment(appointment)}
+                        onClick={(event) => { event.stopPropagation(); cancelAppointment(appointment); }}
                       >
                         Cancel
                       </button>
@@ -381,6 +402,29 @@ export default function ReceptionistWorkspace({ user, onLogout }) {
           </tbody>
         </table>
       </div>
+      {selectedAppointment && (
+        <div className="patient-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedAppointment(null); }}>
+          <section className="patient-details-modal" role="dialog" aria-modal="true" aria-labelledby="front-appointment-details-title">
+            <div className="patient-details-header">
+              <div className="patient-modal-person">
+                <span className="patient-modal-avatar">{(selectedAppointment.patient_name || "P").charAt(0).toUpperCase()}</span>
+                <div><span className="patient-modal-kicker">APPOINTMENT DETAILS</span><h3 id="front-appointment-details-title">{selectedAppointment.patient_name || "Appointment"}</h3><p>Appointment #{selectedAppointment.appointment_id}</p></div>
+              </div>
+              <button type="button" className="patient-modal-close" aria-label="Close appointment details" onClick={() => setSelectedAppointment(null)}>X</button>
+            </div>
+            <div className="patient-details-grid">
+              <div className="patient-details-item"><span>Patient ID</span><strong>{selectedAppointment.patient_id ?? "Not available"}</strong></div>
+              <div className="patient-details-item"><span>Doctor</span><strong>{selectedAppointment.doctor_name || "Not assigned"}</strong></div>
+              <div className="patient-details-item"><span>Date</span><strong>{dateLabel(selectedAppointment.appointment_date)}</strong></div>
+              <div className="patient-details-item"><span>Time</span><strong>{timeLabel(selectedAppointment.start_time)}â€“{timeLabel(selectedAppointment.end_time)}</strong></div>
+              <div className="patient-details-item"><span>Status</span><strong>{String(selectedAppointment.status || "Unknown").replace(/_/g, " ")}</strong></div>
+              <div className="patient-details-item patient-details-full"><span>Reason</span><strong>{selectedAppointment.reason || "Not provided"}</strong></div>
+            </div>
+            <div className="patient-details-footer"><button type="button" className="patient-modal-done" onClick={() => setSelectedAppointment(null)}>Close details</button></div>
+          </section>
+        </div>
+      )}
+      </>
     );
   }
 
@@ -417,22 +461,19 @@ export default function ReceptionistWorkspace({ user, onLogout }) {
             label="REGISTERED PATIENTS"
             value={summary.registeredPatients}
             detail="Manage demographics & intake"
-            tone="patients"
-          />
+            tone="patients" onClick={() => navigate("patients")} />
           <FrontDeskStat
             icon="✚"
             label="ACTIVE PHYSICIANS"
             value={summary.activePhysicians}
             detail="View specializations & contacts"
-            tone="doctors"
-          />
+            tone="doctors" onClick={() => navigate("doctors")} />
           <FrontDeskStat
             icon="▦"
             label="TOTAL BOOKINGS"
             value={summary.totalBookings}
             detail={`${summary.pendingScheduled ?? 0} pending scheduled`}
-            tone="appointments"
-          />
+            tone="appointments" onClick={() => navigate("appointments")} />
         </div>
 
         <section className="front-role-boundary">
@@ -698,6 +739,7 @@ export default function ReceptionistWorkspace({ user, onLogout }) {
                 <div className="patient-details-item patient-details-full"><span>Address</span><strong>{selectedPatient.address || "Not provided"}</strong></div>
               </div>
               <div className="patient-details-footer">
+                <button type="button" className="front-button primary" onClick={() => { setAppointmentForm((current) => ({ ...current, patientId: String(selectedPatient.patient_id) })); setAppointmentFormOpen(true); setSelectedPatient(null); navigate("appointments"); }}>Book appointment for this patient</button>
                 <button type="button" className="patient-modal-done" onClick={() => setSelectedPatient(null)}>Close details</button>
               </div>
             </section>
@@ -773,10 +815,10 @@ export default function ReceptionistWorkspace({ user, onLogout }) {
           )}
         </section>
         <div className="front-stats-grid front-doctor-summary">
-          <FrontDeskStat icon="✚" label="TOTAL DOCTORS" value={doctors.length} detail="Approved doctor accounts" tone="doctors" />
-          <FrontDeskStat icon="◷" label="OPD" value={doctors.filter((doctor) => String(doctor.doctor_type || "").toLowerCase() === "opd").length} detail="Outpatient doctors" tone="doctors" />
-          <FrontDeskStat icon="✚" label="SURGEONS" value={doctors.filter((doctor) => String(doctor.doctor_type || "").toLowerCase() === "surgeon").length} detail="Surgical specialists" tone="doctors" />
-          <FrontDeskStat icon="♡" label="GENERAL PHYSICIANS" value={doctors.filter((doctor) => String(doctor.doctor_type || "").toLowerCase() === "general physician").length} detail="General medical care" tone="doctors" />
+          <FrontDeskStat icon="✚" label="TOTAL DOCTORS" value={doctors.length} detail="Approved doctor accounts" tone="doctors" onClick={() => setDoctorSearch("")} />
+          <FrontDeskStat icon="◷" label="OPD" value={doctors.filter((doctor) => String(doctor.doctor_type || "").toLowerCase() === "opd").length} detail="Outpatient doctors" tone="doctors" onClick={() => setDoctorSearch("opd")} />
+          <FrontDeskStat icon="✚" label="SURGEONS" value={doctors.filter((doctor) => String(doctor.doctor_type || "").toLowerCase() === "surgeon").length} detail="Surgical specialists" tone="doctors" onClick={() => setDoctorSearch("surgeon")} />
+          <FrontDeskStat icon="♡" label="GENERAL PHYSICIANS" value={doctors.filter((doctor) => String(doctor.doctor_type || "").toLowerCase() === "general physician").length} detail="General medical care" tone="doctors" onClick={() => setDoctorSearch("general physician")} />
         </div>
 
         {/* DOCTOR DIRECTORY TABLE VIEW START */}
@@ -789,6 +831,11 @@ export default function ReceptionistWorkspace({ user, onLogout }) {
           <span className="front-pending-count">{doctors.length} doctors</span>
         </div>
 
+        <div className="front-data-toolbar">
+          <label htmlFor="front-doctor-search">Search doctors</label>
+          <input id="front-doctor-search" type="search" value={doctorSearch} onChange={(event) => setDoctorSearch(event.target.value)} placeholder="Name, ID, specialty, email, or phone" />
+          <span>{filteredDoctors.length} of {doctors.length} doctors</span>
+        </div>
         <div className="front-table-wrap front-doctor-directory-table">
           <table className="front-table">
             <thead>
@@ -804,7 +851,7 @@ export default function ReceptionistWorkspace({ user, onLogout }) {
               </tr>
             </thead>
             <tbody>
-              {doctors.length ? doctors.map((doctor) => (
+              {filteredDoctors.length ? filteredDoctors.map((doctor) => (
                 <tr key={doctor.doctor_id}>
                   <td>
                     <div className="front-person-cell front-doctor-table-person">

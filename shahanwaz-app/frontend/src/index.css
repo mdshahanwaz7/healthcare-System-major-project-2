@@ -4217,3 +4217,462 @@ body :is(p, li, label, td, th) {
   .patient-language-select { min-width: 0; max-width: 190px; width: auto; }
 }
 /* PATIENT PORTAL LANGUAGE CSS V2 END */
+/* Data interactions: keyboard feedback, record search, and expandable fields */
+.patient-stat-card-interactive,
+.doc-stat--interactive,
+.front-stat-card--interactive {
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+.patient-stat-card-interactive:hover,
+.doc-stat--interactive:hover,
+.front-stat-card--interactive:hover {
+  transform: translateY(-2px);
+}
+.patient-stat-card-interactive:focus-visible,
+.doc-stat--interactive:focus-visible,
+.front-stat-card--interactive:focus-visible,
+.patient-record-expand-button:focus-visible,
+.front-clickable-row:focus-visible {
+  outline: 3px solid rgba(59, 130, 246, 0.55);
+  outline-offset: 3px;
+}
+.patient-record-toolbar,
+.front-data-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.7rem;
+  margin: 0.75rem 0 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(120, 130, 150, 0.22);
+  border-radius: 14px;
+  background: rgba(120, 130, 150, 0.06);
+}
+.patient-record-toolbar label,
+.front-data-toolbar label {
+  font-size: 0.84rem;
+  font-weight: 650;
+}
+.patient-record-toolbar input,
+.front-data-toolbar input {
+  flex: 1 1 240px;
+  min-width: 180px;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid rgba(120, 130, 150, 0.4);
+  border-radius: 10px;
+  background: var(--surface, #fff);
+  color: inherit;
+  font: inherit;
+}
+.patient-record-toolbar span,
+.front-data-toolbar span {
+  color: var(--muted, #64748b);
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+.patient-record-expand-button {
+  margin-top: 0.6rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgba(120, 130, 150, 0.38);
+  border-radius: 9px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+.doc-record-more {
+  margin-top: 0.8rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(120, 130, 150, 0.22);
+}
+.doc-record-more summary {
+  cursor: pointer;
+  font-weight: 650;
+}
+.front-clickable-row {
+  cursor: pointer;
+}
+.front-clickable-row:hover > td {
+  background: rgba(120, 130, 150, 0.08);
+}
+@media (prefers-reduced-motion: reduce) {
+  .patient-stat-card-interactive,
+  .doc-stat--interactive,
+  .front-stat-card--interactive {
+    transition: none;
+  }
+  .patient-stat-card-interactive:hover,
+  .doc-stat--interactive:hover,
+  .front-stat-card--interactive:hover {
+    transform: none;
+  }
+}
+
+/* Dashboard header and doctor-feature hover feedback V2 */
+/* Main dashboard header cards: subtle size change on desktop hover. */
+@media (hover: hover) and (pointer: fine) {
+  .patient-welcome-banner,
+  .patient-chat-header,
+  .patient-error-banner,
+  .doc-stat-header,
+  .doc-hero,
+  .patient-details-header,
+  .doc-assistant-header,
+  .doc-chat-welcome,
+  .front-hero,
+  .front-doctor-modal-header,
+  .front-credential-header,
+  .front-dashboard-hero,
+  .front-welcome-banner,
+  .front-overview-hero,
+  .front-header-card {
+  transform-origin: center;
+  transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+}
+  .patient-welcome-banner:hover,
+  .patient-chat-header:hover,
+  .patient-error-banner:hover,
+  .doc-stat-header:hover,
+  .doc-hero:hover,
+  .patient-details-header:hover,
+  .doc-assistant-header:hover,
+  .doc-chat-welcome:hover,
+  .front-hero:hover,
+  .front-doctor-modal-header:hover,
+  .front-credential-header:hover,
+  .front-dashboard-hero:hover,
+  .front-welcome-banner:hover,
+  .front-overview-hero:hover,
+  .front-header-card:hover {
+  transform: translateY(-3px) scale(1.012);
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.12);
+}
+
+/* Doctor feature, stat, and record cards: grow slightly on hover. */
+  .doc-record-card,
+  .doc-upcoming-card,
+  .doc-quick-card,
+  .doc-schedule-card,
+  .doc-stat,
+  .doc-record-grid > *,
+  .doc-feature-card,
+  .doc-feature-tile,
+  .doc-action-card,
+  .doc-quick-action,
+  .doc-overview-card,
+  .doc-summary-card,
+  .doc-appointment-card {
+  transform-origin: center;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+  .doc-record-card:hover,
+  .doc-upcoming-card:hover,
+  .doc-quick-card:hover,
+  .doc-schedule-card:hover,
+  .doc-stat:hover,
+  .doc-record-grid > *:hover,
+  .doc-feature-card:hover,
+  .doc-feature-tile:hover,
+  .doc-action-card:hover,
+  .doc-quick-action:hover,
+  .doc-overview-card:hover,
+  .doc-summary-card:hover,
+  .doc-appointment-card:hover {
+  transform: translateY(-3px) scale(1.025);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+  z-index: 1;
+}
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .patient-welcome-banner,
+  .patient-chat-header,
+  .patient-error-banner,
+  .doc-stat-header,
+  .doc-hero,
+  .patient-details-header,
+  .doc-assistant-header,
+  .doc-chat-welcome,
+  .front-hero,
+  .front-doctor-modal-header,
+  .front-credential-header,
+  .front-dashboard-hero,
+  .front-welcome-banner,
+  .front-overview-hero,
+  .front-header-card,
+  .patient-welcome-banner:hover,
+  .patient-chat-header:hover,
+  .patient-error-banner:hover,
+  .doc-stat-header:hover,
+  .doc-hero:hover,
+  .patient-details-header:hover,
+  .doc-assistant-header:hover,
+  .doc-chat-welcome:hover,
+  .front-hero:hover,
+  .front-doctor-modal-header:hover,
+  .front-credential-header:hover,
+  .front-dashboard-hero:hover,
+  .front-welcome-banner:hover,
+  .front-overview-hero:hover,
+  .front-header-card:hover,
+  .doc-record-card,
+  .doc-upcoming-card,
+  .doc-quick-card,
+  .doc-schedule-card,
+  .doc-stat,
+  .doc-record-grid > *,
+  .doc-feature-card,
+  .doc-feature-tile,
+  .doc-action-card,
+  .doc-quick-action,
+  .doc-overview-card,
+  .doc-summary-card,
+  .doc-appointment-card,
+  .doc-record-card:hover,
+  .doc-upcoming-card:hover,
+  .doc-quick-card:hover,
+  .doc-schedule-card:hover,
+  .doc-stat:hover,
+  .doc-record-grid > *:hover,
+  .doc-feature-card:hover,
+  .doc-feature-tile:hover,
+  .doc-action-card:hover,
+  .doc-quick-action:hover,
+  .doc-overview-card:hover,
+  .doc-summary-card:hover,
+  .doc-appointment-card:hover {
+  transition: none !important;
+  transform: none !important;
+}
+}
+
+/* All-pages, all-features hover interactions V3 */
+/* Page headers and section heading cards throughout Patient, Doctor, and Receptionist pages. */
+@media (hover: hover) and (pointer: fine) {
+  :is(
+    .patient-welcome-banner,
+    .patient-page-intro,
+    .patient-section-heading,
+    .patient-topbar,
+    .doc-hero,
+    .doc-page-intro,
+    .doc-section-heading,
+    .front-page-intro,
+    .front-section-heading,
+    .front-topbar,
+    [class*="page-intro"],
+    [class*="section-heading"],
+    [class*="welcome-banner"],
+    [class*="header-card"]
+  ) {
+    transform-origin: center;
+    transition: transform 190ms ease, box-shadow 190ms ease, border-color 190ms ease, background-color 190ms ease;
+  }
+
+  :is(
+    .patient-welcome-banner,
+    .patient-page-intro,
+    .patient-section-heading,
+    .patient-topbar,
+    .doc-hero,
+    .doc-page-intro,
+    .doc-section-heading,
+    .front-page-intro,
+    .front-section-heading,
+    .front-topbar,
+    [class*="page-intro"],
+    [class*="section-heading"],
+    [class*="welcome-banner"],
+    [class*="header-card"]
+  ):hover {
+    transform: translateY(-3px) scale(1.012);
+    box-shadow: 0 16px 34px rgba(15, 23, 42, 0.12);
+    border-color: rgba(100, 116, 139, 0.38);
+    z-index: 2;
+  }
+
+  /* All role summary/stat cards, record cards, feature tiles, and modal detail cards. */
+  :is(
+    .patient-stat-card,
+    .doc-stat,
+    .front-stat-card,
+    .patient-record-list > *,
+    .doc-record-grid > *,
+    .patient-details-item,
+    [class*="feature-card"],
+    [class*="feature-tile"],
+    [class*="quick-action"],
+    [class*="summary-card"],
+    [class*="metric-card"],
+    [class*="record-card"],
+    [class*="appointment-card"],
+    [class*="doctor-card"],
+    [class*="patient-card"],
+    [class*="modal-card"]
+  ) {
+    transform-origin: center;
+    transition: transform 170ms ease, box-shadow 170ms ease, border-color 170ms ease, background-color 170ms ease;
+  }
+
+  :is(
+    .patient-stat-card,
+    .doc-stat,
+    .front-stat-card,
+    .patient-record-list > *,
+    .doc-record-grid > *,
+    .patient-details-item,
+    [class*="feature-card"],
+    [class*="feature-tile"],
+    [class*="quick-action"],
+    [class*="summary-card"],
+    [class*="metric-card"],
+    [class*="record-card"],
+    [class*="appointment-card"],
+    [class*="doctor-card"],
+    [class*="patient-card"],
+    [class*="modal-card"]
+  ):hover {
+    transform: translateY(-3px) scale(1.022);
+    box-shadow: 0 13px 28px rgba(15, 23, 42, 0.13);
+    border-color: rgba(100, 116, 139, 0.38);
+    z-index: 2;
+  }
+
+  /* Buttons and clickable feature controls respond consistently across every page. */
+  :is(
+    button,
+    a[role="button"],
+    [role="button"],
+    summary,
+    .patient-record-expand-button,
+    .front-text-action,
+    .doc-text-button
+  ) {
+    transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease;
+  }
+
+  :is(
+    button,
+    a[role="button"],
+    [role="button"],
+    summary,
+    .patient-record-expand-button,
+    .front-text-action,
+    .doc-text-button
+  ):hover {
+    transform: translateY(-1px) scale(1.025);
+    filter: brightness(1.025);
+  }
+
+  /* Table rows across the receptionist and doctor pages react as the pointer moves. */
+  :is(.front-table, .doc-table, .patient-table) tbody tr:hover > td {
+    background-color: rgba(100, 116, 139, 0.09);
+    transition: background-color 140ms ease;
+  }
+
+  :is(.front-clickable-row, tr[role="button"]) {
+    transition: box-shadow 150ms ease, background-color 150ms ease;
+  }
+}
+
+/* Keyboard and touch feedback for interactive elements remains visible without hover. */
+:is(
+  .patient-stat-card-interactive,
+  .doc-stat--interactive,
+  .front-stat-card--interactive,
+  .front-clickable-row,
+  button,
+  a[role="button"],
+  [role="button"]
+):focus-visible {
+  outline: 3px solid rgba(59, 130, 246, 0.58);
+  outline-offset: 3px;
+}
+
+:is(button, a[role="button"], [role="button"]):active {
+  transform: scale(0.985);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(
+    .patient-welcome-banner,
+    .patient-page-intro,
+    .patient-section-heading,
+    .patient-topbar,
+    .doc-hero,
+    .doc-page-intro,
+    .doc-section-heading,
+    .front-page-intro,
+    .front-section-heading,
+    .front-topbar,
+    [class*="page-intro"],
+    [class*="section-heading"],
+    [class*="welcome-banner"],
+    [class*="header-card"],
+    .patient-stat-card,
+    .doc-stat,
+    .front-stat-card,
+    .patient-record-list > *,
+    .doc-record-grid > *,
+    .patient-details-item,
+    [class*="feature-card"],
+    [class*="feature-tile"],
+    [class*="quick-action"],
+    [class*="summary-card"],
+    [class*="metric-card"],
+    [class*="record-card"],
+    [class*="appointment-card"],
+    [class*="doctor-card"],
+    [class*="patient-card"],
+    [class*="modal-card"],
+    button,
+    a[role="button"],
+    [role="button"],
+    summary
+  ) {
+    transition: none !important;
+  }
+
+  :is(
+    .patient-welcome-banner,
+    .patient-page-intro,
+    .patient-section-heading,
+    .patient-topbar,
+    .doc-hero,
+    .doc-page-intro,
+    .doc-section-heading,
+    .front-page-intro,
+    .front-section-heading,
+    .front-topbar,
+    [class*="page-intro"],
+    [class*="section-heading"],
+    [class*="welcome-banner"],
+    [class*="header-card"],
+    .patient-stat-card,
+    .doc-stat,
+    .front-stat-card,
+    .patient-record-list > *,
+    .doc-record-grid > *,
+    .patient-details-item,
+    [class*="feature-card"],
+    [class*="feature-tile"],
+    [class*="quick-action"],
+    [class*="summary-card"],
+    [class*="metric-card"],
+    [class*="record-card"],
+    [class*="appointment-card"],
+    [class*="doctor-card"],
+    [class*="patient-card"],
+    [class*="modal-card"],
+    button,
+    a[role="button"],
+    [role="button"],
+    summary
+  ):hover,
+  :is(button, a[role="button"], [role="button"]):active {
+    transform: none !important;
+    filter: none !important;
+  }
+}

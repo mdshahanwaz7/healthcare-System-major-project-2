@@ -441,9 +441,10 @@ function displayValue(value) {
 }
 
 function RecordCard({ record, index, kind }) {
+  const [expanded, setExpanded] = useState(false);
   const entries = Object.entries(record || {}).filter(
     ([key, value]) =>
-      !["password", "password_hash", "token"].includes(key.toLowerCase()) &&
+      !/password|token|secret|file_path|binary_data|blob_data|raw_content|base64/i.test(key) &&
       value !== null &&
       value !== undefined &&
       value !== ""
@@ -476,7 +477,7 @@ function RecordCard({ record, index, kind }) {
         </div>
       </div>
       <dl className="patient-record-fields">
-        {entries.slice(0, 12).map(([key, value]) => (
+        {entries.slice(0, expanded ? entries.length : 12).map(([key, value]) => (
           <div key={key} className="patient-record-field">
             <dt>{displayLabel(key)}</dt>
             <dd>{displayValue(value)}</dd>
@@ -484,7 +485,14 @@ function RecordCard({ record, index, kind }) {
         ))}
       </dl>
       {entries.length > 12 && (
-        <p className="patient-muted">Additional fields are available in the linked record.</p>
+        <button
+          type="button"
+          className="patient-record-expand-button"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((current) => !current)}
+        >
+          {expanded ? "Show fewer fields" : `Show all ${entries.length} fields`}
+        </button>
       )}
     </article>
   );
@@ -500,9 +508,20 @@ function EmptyState({ symbol, title, description }) {
   );
 }
 
-function StatCard({ label, value, symbol, note }) {
+function StatCard({ label, value, symbol, note, onClick }) {
   return (
-    <article className="patient-stat-card">
+    <article
+      className={`patient-stat-card ${onClick ? "patient-stat-card-interactive" : ""}`}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClick();
+        }
+      } : undefined}
+    >
       <div className="patient-stat-top">
         <span>{label}</span>
         <span className="patient-stat-symbol">{symbol}</span>
@@ -517,6 +536,7 @@ export default function PatientWorkspace({ user, onLogout }) {
   const [activeSection, setActiveSection] = useState("dashboard");
   const [loading, setLoading] = useState(false);
   const [pageError, setPageError] = useState("");
+  const [recordSearch, setRecordSearch] = useState("");
   const [dashboard, setDashboard] = useState(null);
   const [discharges, setDischarges] = useState([]);
   const [prescriptions, setPrescriptions] = useState([]);
@@ -689,9 +709,20 @@ export default function PatientWorkspace({ user, onLogout }) {
 
   function selectSection(id) {
     setActiveSection(id);
+    setRecordSearch("");
   }
 
-  function renderDashboard() {
+  function filterRecords(records) {
+    const term = recordSearch.trim().toLowerCase();
+    if (!term) return records || [];
+    return (records || []).filter((record) =>
+      Object.entries(record || {}).some(([key, value]) => {
+        if (/password|token|secret|file_path|binary_data|blob_data/i.test(key)) return false;
+        const searchable = value && typeof value === "object" ? JSON.stringify(value) : String(value ?? "");
+        return searchable.toLowerCase().includes(term);
+      })
+    );
+  }  function renderDashboard() {
     return (
       <>
         <section className="patient-welcome-banner">
@@ -718,10 +749,10 @@ export default function PatientWorkspace({ user, onLogout }) {
         </div>
 
         <div className="patient-stats-grid">
-          <StatCard label="Discharge records" value={stats.dischargeCount ?? stats.discharge_count ?? "—"} symbol="♡" note="Your recovery records" />
-          <StatCard label="Prescriptions" value={stats.prescriptionCount ?? stats.prescription_count ?? "—"} symbol="✚" note="Prescriptions on file" />
-          <StatCard label="Medical history" value={stats.historyCount ?? stats.history_count ?? "—"} symbol="▧" note="Records linked to you" />
-          <StatCard label="Care messages" value={stats.messageCount ?? stats.message_count ?? "—"} symbol="▤" note="Post-discharge messages" />
+          <StatCard label="Discharge records" value={stats.dischargeCount ?? stats.discharge_count ?? "—"} symbol="♡" note="Your recovery records" onClick={() => selectSection("care")} />
+          <StatCard label="Prescriptions" value={stats.prescriptionCount ?? stats.prescription_count ?? "—"} symbol="✚" note="Prescriptions on file" onClick={() => selectSection("prescriptions")} />
+          <StatCard label="Medical history" value={stats.historyCount ?? stats.history_count ?? "—"} symbol="▧" note="Records linked to you" onClick={() => selectSection("history")} />
+          <StatCard label="Care messages" value={stats.messageCount ?? stats.message_count ?? "—"} symbol="▤" note="Post-discharge messages" onClick={() => selectSection("chat")} />
         </div>
 
         <div className="patient-section-heading">
@@ -759,9 +790,14 @@ export default function PatientWorkspace({ user, onLogout }) {
           <h2>Post-discharge care</h2>
           <p>Review the discharge information and aftercare guidance recorded by your healthcare team.</p>
         </div>
-        {discharges.length ? (
+        <div className="patient-record-toolbar">
+          <label htmlFor="patient-care-record-search">Search discharge records</label>
+          <input id="patient-care-record-search" type="search" value={recordSearch} onChange={(event) => setRecordSearch(event.target.value)} placeholder="Search diagnosis, date, or details" />
+          <span>{filterRecords(discharges).length} shown</span>
+        </div>
+        {filterRecords(discharges).length ? (
           <div className="patient-record-list">
-            {discharges.map((record, index) => (
+            {filterRecords(discharges).map((record, index) => (
               <RecordCard key={record.discharge_id ?? index} record={record} index={index} kind="discharge" />
             ))}
           </div>
@@ -780,9 +816,14 @@ export default function PatientWorkspace({ user, onLogout }) {
           <h2>My prescription</h2>
           <p>Review prescription records linked to your patient profile.</p>
         </div>
-        {prescriptions.length ? (
+        <div className="patient-record-toolbar">
+          <label htmlFor="patient-prescription-record-search">Search prescriptions</label>
+          <input id="patient-prescription-record-search" type="search" value={recordSearch} onChange={(event) => setRecordSearch(event.target.value)} placeholder="Search medicine, dosage, date, or details" />
+          <span>{filterRecords(prescriptions).length} shown</span>
+        </div>
+        {filterRecords(prescriptions).length ? (
           <div className="patient-record-list">
-            {prescriptions.map((record, index) => (
+            {filterRecords(prescriptions).map((record, index) => (
               <RecordCard key={record.prescription_id ?? index} record={record} index={index} kind="prescription" />
             ))}
           </div>
@@ -982,9 +1023,14 @@ export default function PatientWorkspace({ user, onLogout }) {
           <h2>Medical history</h2>
           <p>Medical-history records associated with your signed-in patient account.</p>
         </div>
-        {history.length ? (
+        <div className="patient-record-toolbar">
+          <label htmlFor="patient-history-record-search">Search medical history</label>
+          <input id="patient-history-record-search" type="search" value={recordSearch} onChange={(event) => setRecordSearch(event.target.value)} placeholder="Search diagnosis, date, or details" />
+          <span>{filterRecords(history).length} shown</span>
+        </div>
+        {filterRecords(history).length ? (
           <div className="patient-record-list">
-            {history.map((record, index) => (
+            {filterRecords(history).map((record, index) => (
               <RecordCard key={record.history_id ?? index} record={record} index={index} kind="history" />
             ))}
           </div>
