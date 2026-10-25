@@ -1,4 +1,4 @@
-const express = require("express");
+﻿const express = require("express");
 const bcrypt = require("bcryptjs");
 const { pool } = require("../db");
 const { authRequired } = require("../middleware/authMiddleware");
@@ -69,10 +69,17 @@ async function listAppointments(status = "all", limit = 300) {
   return rows;
 }
 
+let patientIntakeRequestsTableReady = false;
+async function ensurePatientIntakeRequestsTable() {
+  if (patientIntakeRequestsTableReady) return;
+  // The schema is installed once by an administrator. The application account does not create tables at runtime.
+  await pool.query("SELECT 1 FROM patient_intake_requests LIMIT 0");
+  patientIntakeRequestsTableReady = true;
+}
 router.get("/dashboard", async (req, res) => {
   try {
     const [[patientRows], [doctorRows], [bookingRows]] = await Promise.all([
-      pool.query("SELECT COUNT(*) AS total FROM patients"),
+      pool.query("SELECT COUNT(*) AS total FROM patients WHERE registration_status = 'registered'"),
       pool.query("SELECT COUNT(*) AS total FROM doctors"),
       pool.query(
         `SELECT
@@ -83,6 +90,17 @@ router.get("/dashboard", async (req, res) => {
       )
     ]);
 
+    let pendingAppointmentRequests = 0;
+    try {
+      await ensurePatientIntakeRequestsTable();
+      const [requestCountRows] = await pool.query(
+        "SELECT COUNT(*) AS total FROM patient_intake_requests WHERE status = 'pending'"
+      );
+      pendingAppointmentRequests = Number(requestCountRows[0].total);
+    } catch (requestCountError) {
+      // Keep the existing dashboard available if table creation permission is not granted yet.
+      console.error("Pending patient-request count unavailable:", requestCountError.code || requestCountError.message);
+    }
     const recentAppointments = await listAppointments("all", 6);
 
     res.json({
@@ -91,7 +109,8 @@ router.get("/dashboard", async (req, res) => {
         registeredPatients: Number(patientRows[0].total),
         activePhysicians: Number(doctorRows[0].total),
         totalBookings: Number(bookingRows[0].total),
-        pendingScheduled: Number(bookingRows[0].pending_scheduled)
+        pendingScheduled: Number(bookingRows[0].pending_scheduled),
+        pendingAppointmentRequests: pendingAppointmentRequests
       },
       recentAppointments
     });
@@ -104,6 +123,41 @@ router.get("/dashboard", async (req, res) => {
   }
 });
 
+router.get("/appointment-requests", async (req, res) => {
+  const status = String(req.query.status || "pending").toLowerCase();
+  if (!["all", "pending", "scheduled", "declined"].includes(status)) {
+    return res.status(400).json({ success: false, message: "Invalid intake-form status filter." });
+  }
+  try {
+    await ensurePatientIntakeRequestsTable();
+    const where = status === "all" ? "" : "WHERE r.status = ?";
+    const params = status === "all" ? [] : [status];
+    const [requests] = await pool.execute(
+      `SELECT r.request_id, r.patient_id, r.full_name, r.age, r.address, r.phone,
+              r.gender, r.blood_group, r.status, r.receptionist_note,
+              r.appointment_id, r.created_at, r.reviewed_at,
+              pu.full_name AS account_name, pu.email AS patient_email,
+              DATE_FORMAT(a.appointment_date, '%Y-%m-%d') AS appointment_date,
+              TIME_FORMAT(a.start_time, '%H:%i') AS appointment_start_time,
+              TIME_FORMAT(a.end_time, '%H:%i') AS appointment_end_time,
+              du.full_name AS doctor_name, d.specialization AS doctor_specialization
+         FROM patient_intake_requests r
+         JOIN patients p ON p.patient_id = r.patient_id
+         JOIN users pu ON pu.user_id = p.user_id
+         LEFT JOIN appointments a ON a.appointment_id = r.appointment_id
+         LEFT JOIN doctors d ON d.doctor_id = a.doctor_id
+         LEFT JOIN users du ON du.user_id = d.user_id
+         ${where}
+        ORDER BY CASE WHEN r.status = 'pending' THEN 0 ELSE 1 END, r.created_at DESC
+        LIMIT 300`,
+      params
+    );
+    res.json({ success: true, requests });
+  } catch (error) {
+    console.error("Receptionist intake queue lookup failed:", error.code || error.message);
+    res.status(500).json({ success: false, message: "Unable to load patient intake forms." });
+  }
+});
 router.get("/patients", async (req, res) => {
   try {
     const search = String(req.query.search || "").trim();
@@ -115,7 +169,8 @@ router.get("/patients", async (req, res) => {
              p.address, p.emergency_contact, p.allergies
         FROM patients p
         JOIN users u ON u.user_id = p.user_id
-       WHERE u.role = 'patient'`;
+       WHERE u.role = 'patient'
+         AND p.registration_status = 'registered'`;
 
     const params = [];
 
@@ -290,8 +345,8 @@ router.post("/patients", async (req, res) => {
     const [profileResult] = await connection.execute(
       `INSERT INTO patients
          (user_id, date_of_birth, gender, blood_group, address,
-          emergency_contact, allergies)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          emergency_contact, allergies, registration_status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'registered')`,
       [
         userResult.insertId,
         dateOfBirth || null,
@@ -520,6 +575,123 @@ router.post("/appointments", async (req, res) => {
   }
 });
 
+router.post("/appointment-requests/:id/schedule", async (req, res) => {
+  const requestId = Number(req.params.id);
+  const doctorId = Number(req.body?.doctorId);
+  const appointmentDate = typeof req.body?.appointmentDate === "string" ? req.body.appointmentDate : "";
+  const startTime = typeof req.body?.startTime === "string" ? req.body.startTime : "";
+  const endTime = typeof req.body?.endTime === "string" ? req.body.endTime : "";
+
+  if (!Number.isInteger(requestId) || requestId <= 0 || !Number.isInteger(doctorId) || doctorId <= 0) {
+    return res.status(400).json({ success: false, message: "Select a valid intake form and doctor." });
+  }
+  const dateShapeValid = /^\d{4}-\d{2}-\d{2}$/.test(appointmentDate);
+  const parsedAppointmentDate = dateShapeValid ? new Date(`${appointmentDate}T00:00:00Z`) : new Date("invalid");
+  if (Number.isNaN(parsedAppointmentDate.getTime()) || parsedAppointmentDate.toISOString().slice(0, 10) !== appointmentDate || appointmentDate < new Date().toISOString().slice(0, 10)) {
+    return res.status(400).json({ success: false, message: "Choose an appointment date today or later." });
+  }
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(endTime) || endTime <= startTime) {
+    return res.status(400).json({ success: false, message: "End time must be later than start time." });
+  }
+
+  let connection;
+  try {
+    await ensurePatientIntakeRequestsTable();
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+    const [requestRows] = await connection.execute(
+      "SELECT request_id, patient_id, status FROM patient_intake_requests WHERE request_id = ? FOR UPDATE",
+      [requestId]
+    );
+    if (!requestRows.length) {
+      await connection.rollback();
+      return res.status(404).json({ success: false, message: "Patient intake form was not found." });
+    }
+    const request = requestRows[0];
+    if (request.status !== "pending") {
+      await connection.rollback();
+      return res.status(409).json({ success: false, message: "This intake form has already been handled." });
+    }
+    const [doctors] = await connection.execute(
+      `SELECT d.doctor_id FROM doctors d JOIN users u ON u.user_id = d.user_id
+        WHERE d.doctor_id = ? AND u.role = 'doctor' LIMIT 1`,
+      [doctorId]
+    );
+    if (!doctors.length) {
+      await connection.rollback();
+      return res.status(404).json({ success: false, message: "Selected doctor was not found." });
+    }
+    const [doctorConflicts] = await connection.execute(
+      `SELECT appointment_id FROM appointments
+        WHERE doctor_id = ? AND appointment_date = ? AND status = 'scheduled'
+          AND start_time < ? AND end_time > ? LIMIT 1`,
+      [doctorId, appointmentDate, endTime, startTime]
+    );
+    if (doctorConflicts.length) {
+      await connection.rollback();
+      return res.status(409).json({ success: false, message: "This doctor already has an appointment during that time." });
+    }
+    const [patientConflicts] = await connection.execute(
+      `SELECT appointment_id FROM appointments
+        WHERE patient_id = ? AND appointment_date = ? AND status = 'scheduled'
+          AND start_time < ? AND end_time > ? LIMIT 1`,
+      [request.patient_id, appointmentDate, endTime, startTime]
+    );
+    if (patientConflicts.length) {
+      await connection.rollback();
+      return res.status(409).json({ success: false, message: "This patient already has an appointment during that time." });
+    }
+    const [appointmentResult] = await connection.execute(
+      `INSERT INTO appointments
+         (doctor_id, patient_id, appointment_date, start_time, end_time, reason, status)
+       VALUES (?, ?, ?, ?, ?, 'Patient intake request', 'scheduled')`,
+      [doctorId, request.patient_id, appointmentDate, `${startTime}:00`, `${endTime}:00`]
+    );
+    await connection.execute(
+      `UPDATE patient_intake_requests
+          SET status = 'scheduled', appointment_id = ?, reviewed_by = ?, reviewed_at = NOW()
+        WHERE request_id = ? AND status = 'pending'`,
+      [appointmentResult.insertId, req.auth.userId, requestId]
+    );
+    await connection.execute(
+      "UPDATE patients SET registration_status = 'registered' WHERE patient_id = ?",
+      [request.patient_id]
+    );
+    await connection.commit();
+    res.status(201).json({ success: true, appointmentId: appointmentResult.insertId, message: "Appointment scheduled for this patient and intake form marked as handled." });
+  } catch (error) {
+    if (connection) await connection.rollback().catch(() => {});
+    console.error("Scheduling from patient intake form failed:", error.code || error.message);
+    res.status(500).json({ success: false, message: "Unable to schedule this patient." });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+router.patch("/appointment-requests/:id/decline", async (req, res) => {
+  const requestId = Number(req.params.id);
+  const note = typeof req.body?.note === "string" ? req.body.note.trim() : "";
+  if (!Number.isInteger(requestId) || requestId <= 0) {
+    return res.status(400).json({ success: false, message: "Invalid patient intake form ID." });
+  }
+  if (note.length > 500) {
+    return res.status(400).json({ success: false, message: "The note must not exceed 500 characters." });
+  }
+  try {
+    await ensurePatientIntakeRequestsTable();
+    const [result] = await pool.execute(
+      `UPDATE patient_intake_requests
+          SET status = 'declined', receptionist_note = ?, reviewed_by = ?, reviewed_at = NOW()
+        WHERE request_id = ? AND status = 'pending'`,
+      [note || null, req.auth.userId, requestId]
+    );
+    if (!result.affectedRows) return res.status(409).json({ success: false, message: "The form was not found or has already been handled." });
+    res.json({ success: true, message: "Patient intake form marked as declined." });
+  } catch (error) {
+    console.error("Updating patient intake form failed:", error.code || error.message);
+    res.status(500).json({ success: false, message: "Unable to update this intake form." });
+  }
+});
 router.patch("/appointments/:id/cancel", async (req, res) => {
   const appointmentId = Number(req.params.id);
 

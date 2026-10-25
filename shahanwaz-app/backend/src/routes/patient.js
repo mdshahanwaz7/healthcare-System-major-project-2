@@ -163,6 +163,13 @@ async function attachDoctors(records) {
   });
 }
 
+let patientIntakeRequestsTableReady = false;
+async function ensurePatientIntakeRequestsTable() {
+  if (patientIntakeRequestsTableReady) return;
+  // The schema is installed once by an administrator. The application account does not create tables at runtime.
+  await pool.query("SELECT 1 FROM patient_intake_requests LIMIT 0");
+  patientIntakeRequestsTableReady = true;
+}
 // Patient dashboard summary and latest discharge records.
 router.get("/dashboard", async (req, res) => {
   try {
@@ -450,6 +457,88 @@ router.post("/chat", async (req, res) => {
 });
 
 
+// Patient-submitted demographic intake form. It is not itself a confirmed appointment.
+router.get("/appointment-requests", async (req, res) => {
+  try {
+    await ensurePatientIntakeRequestsTable();
+    const patientId = await getPatientId(req.auth.userId);
+    const [requests] = await pool.execute(
+      `SELECT r.request_id, r.patient_id, r.full_name, r.age, r.address, r.phone,
+              r.gender, r.blood_group, r.status, r.receptionist_note,
+              r.appointment_id, r.created_at, r.reviewed_at,
+              DATE_FORMAT(a.appointment_date, '%Y-%m-%d') AS appointment_date,
+              TIME_FORMAT(a.start_time, '%H:%i') AS appointment_start_time,
+              TIME_FORMAT(a.end_time, '%H:%i') AS appointment_end_time,
+              du.full_name AS doctor_name, d.specialization AS doctor_specialization
+         FROM patient_intake_requests r
+         LEFT JOIN appointments a ON a.appointment_id = r.appointment_id
+         LEFT JOIN doctors d ON d.doctor_id = a.doctor_id
+         LEFT JOIN users du ON du.user_id = d.user_id
+        WHERE r.patient_id = ?
+        ORDER BY r.created_at DESC
+        LIMIT 100`,
+      [patientId]
+    );
+    res.json({ success: true, requests });
+  } catch (error) {
+    console.error("Patient intake lookup failed:", error.code || error.message);
+    res.status(500).json({ success: false, message: "Unable to load your submitted details. Please try again or contact reception." });
+  }
+});
+
+router.post("/appointment-requests", async (req, res) => {
+  const fullName = typeof req.body?.fullName === "string" ? req.body.fullName.trim() : "";
+  const age = Number(req.body?.age);
+  const address = typeof req.body?.address === "string" ? req.body.address.trim() : "";
+  const phone = typeof req.body?.phone === "string" ? req.body.phone.trim() : "";
+  const gender = typeof req.body?.gender === "string" ? req.body.gender.trim().toLowerCase() : "";
+  const bloodGroup = typeof req.body?.bloodGroup === "string" ? req.body.bloodGroup.trim().toUpperCase() : "";
+
+  if (fullName.length < 2 || fullName.length > 150) {
+    return res.status(400).json({ success: false, message: "Enter a name between 2 and 150 characters." });
+  }
+  if (!Number.isInteger(age) || age < 0 || age > 130) {
+    return res.status(400).json({ success: false, message: "Enter a valid age from 0 to 130." });
+  }
+  if (address.length < 5 || address.length > 500) {
+    return res.status(400).json({ success: false, message: "Enter an address between 5 and 500 characters." });
+  }
+  if (!/^[+\d][\d\s().-]{6,24}$/.test(phone)) {
+    return res.status(400).json({ success: false, message: "Enter a valid phone number." });
+  }
+  if (!["female", "male", "other", "prefer_not_to_say"].includes(gender)) {
+    return res.status(400).json({ success: false, message: "Select a valid gender option." });
+  }
+  if (!["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "UNKNOWN"].includes(bloodGroup)) {
+    return res.status(400).json({ success: false, message: "Select a valid blood group." });
+  }
+
+  try {
+    await ensurePatientIntakeRequestsTable();
+    const patientId = await getPatientId(req.auth.userId);
+    const [pendingRows] = await pool.execute(
+      "SELECT request_id FROM patient_intake_requests WHERE patient_id = ? AND status = 'pending' LIMIT 1",
+      [patientId]
+    );
+    if (pendingRows.length) {
+      return res.status(409).json({ success: false, message: "You already have a pending details form. Reception will review it shortly." });
+    }
+    const [result] = await pool.execute(
+      `INSERT INTO patient_intake_requests
+         (patient_id, full_name, age, address, phone, gender, blood_group, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')`,
+      [patientId, fullName, age, address, phone, gender, bloodGroup === "UNKNOWN" ? "Unknown" : bloodGroup]
+    );
+    res.status(201).json({
+      success: true,
+      requestId: result.insertId,
+      message: "Your details have been sent to reception. A receptionist will review them and arrange your appointment."
+    });
+  } catch (error) {
+    console.error("Patient intake submission failed:", error.code || error.message);
+    res.status(500).json({ success: false, message: "Unable to send your details to reception. Please try again." });
+  }
+});
 // Patient-only AI assistant. All clinical context is resolved server-side
 // from the authenticated patient's own records; the client cannot submit context.
 router.post("/assistant", async (req, res) => {

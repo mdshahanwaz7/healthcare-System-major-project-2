@@ -1,4 +1,4 @@
-﻿const express = require("express");
+const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { pool } = require("../db");
@@ -114,7 +114,7 @@ router.post("/register", async (req, res) => {
     );
 
     await connection.execute(
-      "INSERT INTO patients (user_id) VALUES (?)",
+      "INSERT INTO patients (user_id, registration_status) VALUES (?, 'self_registered')",
       [result.insertId]
     );
 

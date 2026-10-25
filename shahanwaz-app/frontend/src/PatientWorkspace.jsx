@@ -196,7 +196,24 @@ const PATIENT_TRANSLATION_OVERRIDES = {
     "Refresh": "रीफ़्रेश करें",
     "AI Care Assistant": "AI स्वास्थ्य सहायक",
     "Medical history": "चिकित्सा इतिहास",
-    "My medications": "मेरी दवाएँ"
+    "My medications": "मेरी दवाएँ",
+    "Appointment Request": "अपॉइंटमेंट अनुरोध",
+    "Request an appointment": "अपॉइंटमेंट का अनुरोध करें",
+    "Appointment request form": "अपॉइंटमेंट अनुरोध फ़ॉर्म",
+    "Visit type": "मुलाक़ात का प्रकार",
+    "New visit": "नई मुलाक़ात",
+    "Follow-up": "फ़ॉलो-अप",
+    "Other": "अन्य",
+    "Preferred specialty (optional)": "पसंदीदा विशेषज्ञता (वैकल्पिक)",
+    "Preferred date (optional)": "पसंदीदा तारीख (वैकल्पिक)",
+    "Preferred time (optional)": "पसंदीदा समय (वैकल्पिक)",
+    "Reason for visit": "मुलाक़ात का कारण",
+    "Additional notes (optional)": "अतिरिक्त जानकारी (वैकल्पिक)",
+    "Submit request to reception": "रिसेप्शन को अनुरोध भेजें",
+    "Your appointment requests": "आपके अपॉइंटमेंट अनुरोध",
+    "No appointment requests yet.": "अभी कोई अपॉइंटमेंट अनुरोध नहीं है।",
+    "Scheduled": "निर्धारित",
+    "Declined": "अस्वीकृत"
   },
   gu: {
     "My Dashboard": "મારું ડેશબોર્ડ",
@@ -218,7 +235,24 @@ const PATIENT_TRANSLATION_OVERRIDES = {
     "Refresh": "ફરીથી લોડ કરો",
     "AI Care Assistant": "AI આરોગ્ય સહાયક",
     "Medical history": "તબીબી ઇતિહાસ",
-    "My medications": "મારી દવાઓ"
+    "My medications": "મારી દવાઓ",
+    "Appointment Request": "મુલાકાતની વિનંતી",
+    "Request an appointment": "મુલાકાત માટે વિનંતી કરો",
+    "Appointment request form": "મુલાકાત વિનંતી ફોર્મ",
+    "Visit type": "મુલાકાતનો પ્રકાર",
+    "New visit": "નવી મુલાકાત",
+    "Follow-up": "ફોલો-અપ",
+    "Other": "અન્ય",
+    "Preferred specialty (optional)": "પસંદગીની વિશેષતા (વૈકલ્પિક)",
+    "Preferred date (optional)": "પસંદગીની તારીખ (વૈકલ્પિક)",
+    "Preferred time (optional)": "પસંદગીનો સમય (વૈકલ્પિક)",
+    "Reason for visit": "મુલાકાતનું કારણ",
+    "Additional notes (optional)": "વધારાની નોંધ (વૈકલ્પિક)",
+    "Submit request to reception": "રિસેપ્શનને વિનંતી મોકલો",
+    "Your appointment requests": "તમારી મુલાકાતની વિનંતીઓ",
+    "No appointment requests yet.": "હજુ સુધી કોઈ મુલાકાતની વિનંતી નથી.",
+    "Scheduled": "નક્કી થયેલ",
+    "Declined": "નકારેલ"
   },
   mr: {
     "My Dashboard": "माझा डॅशबोर्ड",
@@ -240,7 +274,24 @@ const PATIENT_TRANSLATION_OVERRIDES = {
     "Refresh": "पुन्हा लोड करा",
     "AI Care Assistant": "AI आरोग्य सहाय्यक",
     "Medical history": "वैद्यकीय इतिहास",
-    "My medications": "माझी औषधे"
+    "My medications": "माझी औषधे",
+    "Appointment Request": "भेटीची विनंती",
+    "Request an appointment": "भेटीसाठी विनंती करा",
+    "Appointment request form": "भेट विनंती फॉर्म",
+    "Visit type": "भेटीचा प्रकार",
+    "New visit": "नवीन भेट",
+    "Follow-up": "पाठपुरावा",
+    "Other": "इतर",
+    "Preferred specialty (optional)": "पसंतीचे विशेष क्षेत्र (ऐच्छिक)",
+    "Preferred date (optional)": "पसंतीची तारीख (ऐच्छिक)",
+    "Preferred time (optional)": "पसंतीची वेळ (ऐच्छिक)",
+    "Reason for visit": "भेटीचे कारण",
+    "Additional notes (optional)": "अतिरिक्त नोंदी (ऐच्छिक)",
+    "Submit request to reception": "रिसेप्शनला विनंती पाठवा",
+    "Your appointment requests": "तुमच्या भेटीच्या विनंत्या",
+    "No appointment requests yet.": "अद्याप भेटीची कोणतीही विनंती नाही.",
+    "Scheduled": "नियोजित",
+    "Declined": "नाकारले"
   }
 };
 
@@ -388,6 +439,7 @@ const navigation = [
   { id: "chat", label: "Post-Discharge Chat", symbol: "▤" },
   { id: "assistant", label: "AI Care Assistant", symbol: "\u2728" },
   { id: "prescriptions", label: "My Prescription", symbol: "✚" },
+  { id: "appointment-request", label: "Patient Details Form", symbol: "+" },
   { id: "history", label: "Medical History", symbol: "▧" },
 ];
 
@@ -541,7 +593,17 @@ export default function PatientWorkspace({ user, onLogout }) {
   const [discharges, setDischarges] = useState([]);
   const [prescriptions, setPrescriptions] = useState([]);
   const [history, setHistory] = useState([]);
-  const [chatData, setChatData] = useState({ messages: [], doctor: null });
+  const [appointmentRequests, setAppointmentRequests] = useState([]);
+  const [appointmentRequestForm, setAppointmentRequestForm] = useState({
+    fullName: user?.fullName || user?.full_name || "",
+    age: "",
+    address: user?.address || "",
+    phone: user?.phone || "",
+    gender: user?.gender || "",
+    bloodGroup: user?.bloodGroup || user?.blood_group || "",
+  });
+  const [appointmentRequestSaving, setAppointmentRequestSaving] = useState(false);
+  const [appointmentRequestNotice, setAppointmentRequestNotice] = useState("");  const [chatData, setChatData] = useState({ messages: [], doctor: null });
   const [contacts, setContacts] = useState([]);
   const [selectedContactId, setSelectedContactId] = useState("");
   const [message, setMessage] = useState("");
@@ -571,6 +633,7 @@ export default function PatientWorkspace({ user, onLogout }) {
       chat: "/api/patient/chat",
       prescriptions: "/api/patient/prescriptions",
       history: "/api/patient/medical-history",
+      "appointment-request": "/api/patient/appointment-requests",
     };
 
     try {
@@ -590,7 +653,9 @@ export default function PatientWorkspace({ user, onLogout }) {
       if (section === "history") {
         setHistory(Array.isArray(result.records) ? result.records : result.items || []);
       }
-      if (section === "chat") {
+      if (section === "appointment-request") {
+        setAppointmentRequests(Array.isArray(result.requests) ? result.requests : []);
+      }      if (section === "chat") {
         const availableContacts = Array.isArray(result.contacts) ? result.contacts : [];
         setContacts(availableContacts);
         setChatData({
@@ -722,7 +787,132 @@ export default function PatientWorkspace({ user, onLogout }) {
         return searchable.toLowerCase().includes(term);
       })
     );
-  }  function renderDashboard() {
+  }  async function submitAppointmentRequest(event) {
+    event.preventDefault();
+    if (appointmentRequestSaving) return;
+    setPageError("");
+    setAppointmentRequestNotice("");
+    setAppointmentRequestSaving(true);
+    try {
+      const result = await patientApi("/api/patient/appointment-requests", {
+        method: "POST",
+        body: JSON.stringify({
+          fullName: appointmentRequestForm.fullName.trim(),
+          age: Number(appointmentRequestForm.age),
+          address: appointmentRequestForm.address.trim(),
+          phone: appointmentRequestForm.phone.trim(),
+          gender: appointmentRequestForm.gender,
+          bloodGroup: appointmentRequestForm.bloodGroup,
+        }),
+      });
+      setAppointmentRequestNotice(result.message || "Your details were sent to reception.");
+      await loadSection("appointment-request", true);
+    } catch (requestError) {
+      setPageError(requestError.message || "Unable to send your details to reception.");
+    } finally {
+      setAppointmentRequestSaving(false);
+    }
+  }
+  function renderAppointmentRequests() {
+    return (
+      <>
+        <div className="patient-page-intro">
+          <span className="patient-eyebrow">PATIENT INTAKE</span>
+          <h2>Patient details form</h2>
+          <p>Fill in your basic details below. Reception will review your information and arrange an appointment. Submitting this form does not confirm a booking.</p>
+        </div>
+        {appointmentRequestNotice && (
+          <div className="patient-request-notice" role="status">
+            <strong>Details sent to reception</strong><p>{appointmentRequestNotice}</p>
+            <button type="button" onClick={() => setAppointmentRequestNotice("")}>Dismiss</button>
+          </div>
+        )}
+        <section className="patient-request-form-card">
+          <div className="patient-request-form-heading">
+            <span className="patient-eyebrow">BASIC INFORMATION</span>
+            <h3>Patient details</h3>
+            <p>Please check that your contact and demographic details are accurate.</p>
+          </div>
+          <form className="patient-request-form" onSubmit={submitAppointmentRequest}>
+            <div className="patient-request-form-grid">
+              <label>Full name
+                <input value={appointmentRequestForm.fullName} onChange={(event) => setAppointmentRequestForm((current) => ({ ...current, fullName: event.target.value }))} minLength={2} maxLength={150} autoComplete="name" required />
+              </label>
+              <label>Age
+                <input type="number" value={appointmentRequestForm.age} onChange={(event) => setAppointmentRequestForm((current) => ({ ...current, age: event.target.value }))} min="0" max="130" step="1" required />
+              </label>
+              <label>Phone number
+                <input type="tel" value={appointmentRequestForm.phone} onChange={(event) => setAppointmentRequestForm((current) => ({ ...current, phone: event.target.value }))} minLength={7} maxLength={25} autoComplete="tel" pattern="[+0-9() .-]{7,25}" required />
+              </label>
+              <label>Gender
+                <select value={appointmentRequestForm.gender} onChange={(event) => setAppointmentRequestForm((current) => ({ ...current, gender: event.target.value }))} required>
+                  <option value="">Select gender</option>
+                  <option value="female">Female</option>
+                  <option value="male">Male</option>
+                  <option value="other">Other</option>
+                  <option value="prefer_not_to_say">Prefer not to say</option>
+                </select>
+              </label>
+              <label>Blood group
+                <select value={appointmentRequestForm.bloodGroup} onChange={(event) => setAppointmentRequestForm((current) => ({ ...current, bloodGroup: event.target.value }))} required>
+                  <option value="">Select blood group</option>
+                  <option value="A+">A+</option><option value="A-">A−</option>
+                  <option value="B+">B+</option><option value="B-">B−</option>
+                  <option value="AB+">AB+</option><option value="AB-">AB−</option>
+                  <option value="O+">O+</option><option value="O-">O−</option>
+                  <option value="UNKNOWN">Not known</option>
+                </select>
+              </label>
+              <label className="patient-request-form-full">Address
+                <textarea value={appointmentRequestForm.address} onChange={(event) => setAppointmentRequestForm((current) => ({ ...current, address: event.target.value }))} minLength={5} maxLength={500} rows={3} autoComplete="street-address" required />
+              </label>
+            </div>
+            <p className="patient-request-disclaimer">Do not use this form for emergencies. Reception will use these details to verify your patient information and schedule a visit.</p>
+            <div className="patient-request-form-actions">
+              <button type="submit" disabled={appointmentRequestSaving}>{appointmentRequestSaving ? "Sending…" : "Send details to reception"}</button>
+            </div>
+          </form>
+        </section>
+        <section className="patient-request-history">
+          <div className="patient-section-heading">
+            <div><span className="patient-eyebrow">STATUS TRACKER</span><h2>Your submitted forms</h2></div>
+            <button type="button" className="patient-refresh-button" onClick={() => loadSection("appointment-request")}>↻ Refresh</button>
+          </div>
+          {appointmentRequests.length ? (
+            <div className="patient-request-list">
+              {appointmentRequests.map((request) => (
+                <article className="patient-request-card" key={request.request_id}>
+                  <div className="patient-request-card-header">
+                    <div><span className="patient-eyebrow">FORM #{request.request_id}</span><h3>{request.full_name || "Patient details"}</h3></div>
+                    <span className={`patient-request-status patient-request-status-${String(request.status || "pending").toLowerCase()}`}>{String(request.status || "pending").replace(/_/g, " ")}</span>
+                  </div>
+                  <div className="patient-request-meta">
+                    <span><strong>Age:</strong> {request.age}</span>
+                    <span><strong>Phone:</strong> {request.phone}</span>
+                    <span><strong>Gender:</strong> {request.gender === "prefer_not_to_say" ? "Prefer not to say" : request.gender}</span>
+                    <span><strong>Blood group:</strong> {request.blood_group}</span>
+                    <span><strong>Address:</strong> {request.address}</span>
+                    <span><strong>Submitted:</strong> {request.created_at ? new Date(request.created_at).toLocaleString() : "—"}</span>
+                  </div>
+                  {request.status === "scheduled" && request.appointment_date && (
+                    <div className="patient-request-scheduled">
+                      <strong>Appointment scheduled</strong>
+                      <span>{request.appointment_date} · {request.appointment_start_time || "—"}–{request.appointment_end_time || "—"}</span>
+                      <span>{request.doctor_name || "Doctor assigned"}{request.doctor_specialization ? ` · ${request.doctor_specialization}` : ""}</span>
+                    </div>
+                  )}
+                  {request.receptionist_note && <p className="patient-request-reception-note"><strong>Reception note:</strong> {request.receptionist_note}</p>}
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="patient-request-empty"><strong>No details forms submitted yet.</strong><p>After you send the form, its status and any scheduled appointment will appear here.</p></div>
+          )}
+        </section>
+      </>
+    );
+  }
+  function renderDashboard() {
     return (
       <>
         <section className="patient-welcome-banner">
@@ -1210,6 +1400,7 @@ export default function PatientWorkspace({ user, onLogout }) {
           {activeSection === "chat" && renderChat()}
           {activeSection === "assistant" && renderAssistant()}
           {activeSection === "prescriptions" && renderPrescriptions()}
+          {activeSection === "appointment-request" && renderAppointmentRequests()}
           {activeSection === "history" && renderHistory()}
         </div>
 

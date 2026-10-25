@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { id: "patients", label: "Patients", icon: "♙" },
   { id: "doctors", label: "Doctors", icon: "✚" },
   { id: "appointments", label: "Appointments", icon: "▦" },
+  { id: "appointment-requests", label: "Patient Intake Forms", icon: "☷" },
 ];
 
 async function receptionistRequest(path, options = {}) {
@@ -103,12 +104,21 @@ export default function ReceptionistWorkspace({ user, onLogout }) {
     activePhysicians: 0,
     totalBookings: 0,
     pendingScheduled: 0,
+    pendingAppointmentRequests: 0,
   });
   const [patients, setPatients] = useState([]);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [doctors, setDoctors] = useState([]);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
-  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [appointmentRequests, setAppointmentRequests] = useState([]);
+  const [requestStatusFilter, setRequestStatusFilter] = useState("pending");
+  const [selectedRequestToSchedule, setSelectedRequestToSchedule] = useState(null);
+  const [requestScheduleForm, setRequestScheduleForm] = useState({
+    doctorId: "",
+    appointmentDate: new Date().toISOString().slice(0, 10),
+    startTime: "09:00",
+    endTime: "09:30",
+  });  const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [doctorSearch, setDoctorSearch] = useState("");
   const [doctorApplications, setDoctorApplications] = useState([]);
   const [appointments, setAppointments] = useState([]);
@@ -168,7 +178,14 @@ export default function ReceptionistWorkspace({ user, onLogout }) {
         setDoctorApplications(applicationsResult.applications || []);
       }
 
-      if (target === "appointments") {
+      if (target === "appointment-requests") {
+        const [requestResult, doctorResult] = await Promise.all([
+          receptionistRequest(`/api/receptionist/appointment-requests?status=${encodeURIComponent(requestStatusFilter)}`),
+          receptionistRequest("/api/receptionist/doctors"),
+        ]);
+        setAppointmentRequests(requestResult.requests || []);
+        setDoctors(doctorResult.doctors || []);
+      }      if (target === "appointments") {
         const [appointmentResult, patientResult, doctorResult] = await Promise.all([
           receptionistRequest(
             `/api/receptionist/appointments?status=${encodeURIComponent(appointmentFilter)}`
@@ -192,11 +209,11 @@ export default function ReceptionistWorkspace({ user, onLogout }) {
     } finally {
       setLoading(false);
     }
-  }, [section, appointmentFilter]);
+  }, [requestStatusFilter, section, appointmentFilter]);
 
   useEffect(() => {
     loadSection(section);
-  }, [section, appointmentFilter, loadSection]);
+  }, [requestStatusFilter, section, appointmentFilter, loadSection]);
 
   function navigate(id) {
     setError("");
@@ -319,6 +336,68 @@ export default function ReceptionistWorkspace({ user, onLogout }) {
       setError(reviewError.message || "Unable to process doctor application.");
     }
   }
+  function openRequestScheduler(request) {
+    const today = new Date().toISOString().slice(0, 10);
+    setRequestScheduleForm({
+      doctorId: String(doctors[0]?.doctor_id || ""),
+      appointmentDate: today,
+      startTime: "09:00",
+      endTime: "09:30",
+    });
+    setSelectedRequestToSchedule(request);
+    setError("");
+    setNotice("");
+  }
+
+  async function scheduleAppointmentRequest(event) {
+    event.preventDefault();
+    if (!selectedRequestToSchedule || saving) return;
+    setError("");
+    setNotice("");
+    setSaving(true);
+    try {
+      const result = await receptionistRequest(
+        `/api/receptionist/appointment-requests/${selectedRequestToSchedule.request_id}/schedule`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            doctorId: Number(requestScheduleForm.doctorId),
+            appointmentDate: requestScheduleForm.appointmentDate,
+            startTime: requestScheduleForm.startTime,
+            endTime: requestScheduleForm.endTime,
+          }),
+        }
+      );
+      setSelectedRequestToSchedule(null);
+      setNotice(result.message || "Appointment scheduled for this patient.");
+      setAppointmentFilter("all");
+      setSection("appointments");
+      await loadSection("appointments");
+    } catch (scheduleError) {
+      setError(scheduleError.message || "Unable to schedule this patient.");
+    } finally {
+      setSaving(false);
+    }
+  }
+  async function declineAppointmentRequest(request) {
+    const note = window.prompt(
+      `Optional note for ${request.patient_name || "the patient"}:`,
+      "Please contact reception to discuss other appointment options."
+    );
+    if (note === null) return;
+    setError("");
+    setNotice("");
+    try {
+      const result = await receptionistRequest(
+        `/api/receptionist/appointment-requests/${request.request_id}/decline`,
+        { method: "PATCH", body: JSON.stringify({ note }) }
+      );
+      setNotice(result.message || "Request updated.");
+      await loadSection("appointment-requests");
+    } catch (declineError) {
+      setError(declineError.message || "Unable to update this request.");
+    }
+  }
   const filteredPatients = patients.filter((patient) => {
     const term = search.trim().toLowerCase();
     if (!term) return true;
@@ -342,6 +421,7 @@ export default function ReceptionistWorkspace({ user, onLogout }) {
     patients: "Patients",
     doctors: "Doctors",
     appointments: "Appointments",
+    "appointment-requests": "Patient Intake Forms",
   }[section];
 
   function renderAppointments(rows, recent = false) {
@@ -986,6 +1066,100 @@ export default function ReceptionistWorkspace({ user, onLogout }) {
     );
   }
 
+  function renderAppointmentRequests() {
+    return (
+      <>
+        <div className="front-page-intro">
+          <div>
+            <span className="front-eyebrow">PATIENT INTAKE</span>
+            <h2>Patient details forms</h2>
+            <p>Review the basic details submitted by patients. Once verified, schedule an appointment for the associated patient account.</p>
+          </div>
+          <button type="button" className="front-button outline" onClick={() => loadSection("appointment-requests")}>↻ Refresh</button>
+        </div>
+        <section className="front-applications-panel front-request-queue-panel">
+          <div className="front-applications-heading">
+            <div><span className="front-eyebrow">RECEPTION QUEUE</span><h3>Details awaiting review</h3><p>Patient-submitted information is shown below. Scheduling creates a real appointment for the linked patient ID.</p></div>
+            <label className="front-request-filter">Status
+              <select value={requestStatusFilter} onChange={(event) => setRequestStatusFilter(event.target.value)}>
+                <option value="pending">Pending</option><option value="all">All forms</option><option value="scheduled">Scheduled</option><option value="declined">Declined</option>
+              </select>
+            </label>
+          </div>
+          {appointmentRequests.length ? (
+            <div className="front-request-list">
+              {appointmentRequests.map((request) => (
+                <article className="front-request-card" key={request.request_id}>
+                  <div className="front-request-card-header">
+                    <div>
+                      <span className="front-eyebrow">FORM #{request.request_id} · PATIENT #{request.patient_id}</span>
+                      <h3>{request.full_name || "Patient"}</h3>
+                      <p>Account: {request.account_name || "Patient account"}{request.patient_email ? ` · ${request.patient_email}` : ""}</p>
+                    </div>
+                    <span className={`front-status front-status-${String(request.status || "pending").toLowerCase()}`}>{String(request.status || "pending").replace(/_/g, " ")}</span>
+                  </div>
+                  <div className="front-request-meta">
+                    <span><strong>Age:</strong> {request.age}</span>
+                    <span><strong>Phone:</strong> {request.phone}</span>
+                    <span><strong>Gender:</strong> {request.gender === "prefer_not_to_say" ? "Prefer not to say" : request.gender}</span>
+                    <span><strong>Blood group:</strong> {request.blood_group}</span>
+                    <span><strong>Address:</strong> {request.address}</span>
+                    <span><strong>Received:</strong> {request.created_at ? dateLabel(request.created_at) : "—"}</span>
+                  </div>
+                  {request.status === "scheduled" && request.appointment_date && (
+                    <div className="front-request-scheduled"><strong>Scheduled appointment</strong><span>{request.appointment_date} · {request.appointment_start_time || "—"}–{request.appointment_end_time || "—"}</span><span>{request.doctor_name || "Doctor assigned"}{request.doctor_specialization ? ` · ${request.doctor_specialization}` : ""}</span></div>
+                  )}
+                  {request.receptionist_note && <p className="front-request-note"><strong>Reception note:</strong> {request.receptionist_note}</p>}
+                  {request.status === "pending" && (
+                    <div className="front-request-actions">
+                      <button type="button" className="front-button primary" onClick={() => openRequestScheduler(request)}>Schedule appointment</button>
+                      <button type="button" className="front-button outline" onClick={() => declineAppointmentRequest(request)}>Decline with note</button>
+                    </div>
+                  )}
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="front-applications-empty"><strong>No {requestStatusFilter === "all" ? "patient intake" : requestStatusFilter} forms</strong><p>Patient details forms will appear here after submission from the patient portal.</p></div>
+          )}
+        </section>
+        {selectedRequestToSchedule && (
+          <div className="front-request-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedRequestToSchedule(null); }}>
+            <form className="front-request-schedule-panel" onSubmit={scheduleAppointmentRequest}>
+              <div className="front-form-heading"><div><span className="front-eyebrow">BOOK FROM FORM #{selectedRequestToSchedule.request_id}</span><h3>Schedule for {selectedRequestToSchedule.full_name || selectedRequestToSchedule.patient_name}</h3><p>Verify the submitted patient details, then select an available appointment slot.</p></div><button type="button" className="front-close-button" onClick={() => setSelectedRequestToSchedule(null)}>×</button></div>
+              <div className="front-request-meta">
+                <span><strong>Age:</strong> {selectedRequestToSchedule.age}</span>
+                <span><strong>Phone:</strong> {selectedRequestToSchedule.phone}</span>
+                <span><strong>Gender:</strong> {selectedRequestToSchedule.gender}</span>
+                <span><strong>Blood group:</strong> {selectedRequestToSchedule.blood_group}</span>
+                <span><strong>Address:</strong> {selectedRequestToSchedule.address}</span>
+              </div>
+              {!doctors.length ? <p className="front-form-hint">A doctor profile is required before scheduling this patient.</p> : (
+                <div className="front-form-grid">
+                  <label className="front-request-form-full">Doctor
+                    <select value={requestScheduleForm.doctorId} onChange={(event) => setRequestScheduleForm((current) => ({ ...current, doctorId: event.target.value }))} required>
+                      <option value="">Select doctor…</option>
+                      {doctors.map((doctor) => <option key={doctor.doctor_id} value={doctor.doctor_id}>{doctor.full_name}{doctor.specialization ? ` · ${doctor.specialization}` : ""}</option>)}
+                    </select>
+                  </label>
+                  <label>Appointment date
+                    <input type="date" min={new Date().toISOString().slice(0, 10)} value={requestScheduleForm.appointmentDate} onChange={(event) => setRequestScheduleForm((current) => ({ ...current, appointmentDate: event.target.value }))} required />
+                  </label>
+                  <label>Start time
+                    <input type="time" value={requestScheduleForm.startTime} onChange={(event) => setRequestScheduleForm((current) => ({ ...current, startTime: event.target.value }))} required />
+                  </label>
+                  <label>End time
+                    <input type="time" value={requestScheduleForm.endTime} onChange={(event) => setRequestScheduleForm((current) => ({ ...current, endTime: event.target.value }))} required />
+                  </label>
+                </div>
+              )}
+              <div className="front-request-actions"><button type="button" className="front-button outline" onClick={() => setSelectedRequestToSchedule(null)}>Cancel</button><button type="submit" className="front-button primary" disabled={saving || !doctors.length}>{saving ? "Scheduling…" : "Confirm appointment"}</button></div>
+            </form>
+          </div>
+        )}
+      </>
+    );
+  }
   function renderAppointmentsPage() {
     return (
       <>
@@ -1216,6 +1390,7 @@ export default function ReceptionistWorkspace({ user, onLogout }) {
           {!error && section === "dashboard" && renderDashboard()}
           {!error && section === "patients" && renderPatients()}
           {!error && section === "doctors" && renderDoctors()}
+          {!error && section === "appointment-requests" && renderAppointmentRequests()}
           {!error && section === "appointments" && renderAppointmentsPage()}
         </div>
 
