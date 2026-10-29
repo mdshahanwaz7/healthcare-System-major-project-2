@@ -16,6 +16,109 @@ function patientOnly(req, res, next) {
 }
 
 router.use(patientOnly);
+// PATIENT SELF-PROFILE ROUTES V1
+router.get("/profile", async (req, res) => {
+  try {
+    const patientId = await getPatientId(req.auth.userId);
+    const [userRows] = await pool.execute(
+      "SELECT user_id, full_name, email, role, phone FROM users WHERE user_id = ? AND role = 'patient' LIMIT 1",
+      [req.auth.userId]
+    );
+    const [profileRows] = await pool.execute(
+      "SELECT patient_id, DATE_FORMAT(date_of_birth, '%Y-%m-%d') AS date_of_birth, gender, blood_group, address, emergency_contact, allergies FROM patients WHERE patient_id = ? LIMIT 1",
+      [patientId]
+    );
+    if (!userRows.length || !profileRows.length) {
+      return res.status(404).json({ success: false, message: "Your patient profile could not be found." });
+    }
+    const account = userRows[0];
+    return res.json({
+      success: true,
+      user: { userId: account.user_id, fullName: account.full_name, email: account.email, role: account.role, phone: account.phone || "" },
+      profile: profileRows[0]
+    });
+  } catch (error) {
+    console.error("Patient profile lookup failed:", error.code || error.name);
+    return res.status(error.code === "PATIENT_PROFILE_MISSING" ? 404 : 500).json({
+      success: false,
+      message: error.code === "PATIENT_PROFILE_MISSING" ? "No patient profile is linked to this account." : "Unable to load your profile. Please try again."
+    });
+  }
+});
+
+router.put("/profile", async (req, res) => {
+  const fullName = typeof req.body?.fullName === "string" ? req.body.fullName.trim() : "";
+  const phone = typeof req.body?.phone === "string" ? req.body.phone.trim() : "";
+  const dateOfBirth = typeof req.body?.dateOfBirth === "string" ? req.body.dateOfBirth.trim() : "";
+  const gender = typeof req.body?.gender === "string" ? req.body.gender.trim().toLowerCase() : "";
+  const bloodGroup = typeof req.body?.bloodGroup === "string" ? req.body.bloodGroup.trim().toUpperCase() : "";
+  const address = typeof req.body?.address === "string" ? req.body.address.trim() : "";
+  const emergencyContact = typeof req.body?.emergencyContact === "string" ? req.body.emergencyContact.trim() : "";
+  const allergies = typeof req.body?.allergies === "string" ? req.body.allergies.trim() : "";
+
+  if (fullName.length < 2 || fullName.length > 100) {
+    return res.status(400).json({ success: false, message: "Enter a full name between 2 and 100 characters." });
+  }
+  if (phone.length > 20 || (phone && !/^[+\d][\d\s().-]{5,19}$/.test(phone))) {
+    return res.status(400).json({ success: false, message: "Enter a valid phone number (up to 20 characters)." });
+  }
+  if (dateOfBirth && (!/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth) || Number.isNaN(Date.parse(dateOfBirth)) || dateOfBirth > new Date().toISOString().slice(0, 10))) {
+    return res.status(400).json({ success: false, message: "Enter a valid date of birth that is not in the future." });
+  }
+  if (gender && !["female", "male", "other", "prefer_not_to_say"].includes(gender)) {
+    return res.status(400).json({ success: false, message: "Choose one of the available gender options." });
+  }
+  if (bloodGroup && !["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].includes(bloodGroup)) {
+    return res.status(400).json({ success: false, message: "Choose a valid blood group." });
+  }
+  if (address.length > 500 || emergencyContact.length > 100 || allergies.length > 500) {
+    return res.status(400).json({ success: false, message: "Address, emergency contact, or allergy details exceed the allowed length." });
+  }
+
+  let connection;
+  try {
+    const patientId = await getPatientId(req.auth.userId);
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    await connection.execute(
+      "UPDATE users SET full_name = ?, phone = ? WHERE user_id = ? AND role = 'patient'",
+      [fullName, phone || null, req.auth.userId]
+    );
+    await connection.execute(
+      "UPDATE patients SET date_of_birth = ?, gender = ?, blood_group = ?, address = ?, emergency_contact = ?, allergies = ? WHERE patient_id = ?",
+      [dateOfBirth || null, gender || null, bloodGroup || null, address || null, emergencyContact || null, allergies || null, patientId]
+    );
+
+    const [userRows] = await connection.execute(
+      "SELECT user_id, full_name, email, role, phone FROM users WHERE user_id = ? AND role = 'patient' LIMIT 1",
+      [req.auth.userId]
+    );
+    const [profileRows] = await connection.execute(
+      "SELECT patient_id, DATE_FORMAT(date_of_birth, '%Y-%m-%d') AS date_of_birth, gender, blood_group, address, emergency_contact, allergies FROM patients WHERE patient_id = ? LIMIT 1",
+      [patientId]
+    );
+    if (!userRows.length || !profileRows.length) throw new Error("PATIENT_PROFILE_MISSING_AFTER_UPDATE");
+    await connection.commit();
+
+    const account = userRows[0];
+    return res.json({
+      success: true,
+      message: "Your profile has been updated successfully.",
+      user: { userId: account.user_id, fullName: account.full_name, email: account.email, role: account.role, phone: account.phone || "" },
+      profile: profileRows[0]
+    });
+  } catch (error) {
+    if (connection) await connection.rollback().catch(() => {});
+    console.error("Patient profile update failed:", error.code || error.name);
+    return res.status(error.code === "PATIENT_PROFILE_MISSING" ? 404 : 500).json({
+      success: false,
+      message: error.code === "PATIENT_PROFILE_MISSING" ? "No patient profile is linked to this account." : "Unable to save your profile. Please try again."
+    });
+  } finally {
+    if (connection) connection.release();
+  }
+});
 
 async function getPatientId(userId) {
   const [rows] = await pool.execute(

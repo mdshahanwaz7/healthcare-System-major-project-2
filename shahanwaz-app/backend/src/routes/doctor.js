@@ -1,4 +1,5 @@
 const express = require("express");
+const bcrypt = require("bcryptjs");
 const { pool } = require("../db");
 const { authRequired } = require("../middleware/authMiddleware");
 const multer = require("multer");
@@ -726,29 +727,79 @@ router.post("/discharge-care", async (req, res) => {
 
 router.put("/profile", async (req, res) => {
   const fullName = typeof req.body.fullName === "string" ? req.body.fullName.trim() : "";
+  const email = typeof req.body.email === "string"
+    ? req.body.email.trim().toLowerCase()
+    : String(req.doctorProfile.email || "").trim().toLowerCase();
   const phone = typeof req.body.phone === "string" ? req.body.phone.trim() : "";
   const specialization = typeof req.body.specialization === "string" ? req.body.specialization.trim() : "";
   const qualification = typeof req.body.qualification === "string" ? req.body.qualification.trim() : "";
   const licenseNumber = typeof req.body.licenseNumber === "string" ? req.body.licenseNumber.trim() : "";
   const bio = typeof req.body.bio === "string" ? req.body.bio.trim() : "";
+  const currentPassword = typeof req.body.currentPassword === "string" ? req.body.currentPassword : "";
+  const newPassword = typeof req.body.newPassword === "string" ? req.body.newPassword : "";
   const experience = req.body.experienceYears === "" || req.body.experienceYears == null
     ? null : Number(req.body.experienceYears);
+  const emailChanged = email !== String(req.doctorProfile.email || "").trim().toLowerCase();
+  const passwordChangeRequested = newPassword.length > 0;
 
   if (!fullName || fullName.length > 100 || phone.length > 20 ||
+      !email || email.length > 100 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
       specialization.length > 150 || qualification.length > 150 ||
       licenseNumber.length > 100 || bio.length > 5000 ||
       (experience !== null && (!Number.isInteger(experience) || experience < 0 || experience > 80))) {
     return res.status(400).json({ success: false, message: "Check the values in your profile form." });
+  }
+  if (passwordChangeRequested &&
+      (newPassword.length < 8 || Buffer.byteLength(newPassword, "utf8") > 72)) {
+    return res.status(400).json({ success: false, message: "New password must be at least 8 characters and at most 72 UTF-8 bytes." });
+  }
+  if ((emailChanged || passwordChangeRequested) && !currentPassword) {
+    return res.status(400).json({ success: false, message: "Enter your current password to change your sign-in email or password." });
   }
 
   let connection;
   try {
     connection = await pool.getConnection();
     await connection.beginTransaction();
-    await connection.execute(
-      "UPDATE users SET full_name = ?, phone = ? WHERE user_id = ? AND role = 'doctor'",
-      [fullName, phone || null, req.auth.userId]
+
+    const [accountRows] = await connection.execute(
+      "SELECT user_id, email, password FROM users WHERE user_id = ? AND role = 'doctor' LIMIT 1 FOR UPDATE",
+      [req.auth.userId]
     );
+    if (!accountRows.length) {
+      await connection.rollback();
+      return res.status(404).json({ success: false, message: "Doctor account not found." });
+    }
+
+    if (emailChanged || passwordChangeRequested) {
+      const passwordMatches = await bcrypt.compare(currentPassword, accountRows[0].password);
+      if (!passwordMatches) {
+        await connection.rollback();
+        return res.status(403).json({ success: false, message: "Current password is incorrect." });
+      }
+    }
+
+    const [emailRows] = await connection.execute(
+      "SELECT user_id FROM users WHERE LOWER(email) = ? AND user_id <> ? LIMIT 1",
+      [email, req.auth.userId]
+    );
+    if (emailRows.length) {
+      await connection.rollback();
+      return res.status(409).json({ success: false, message: "That email address is already in use." });
+    }
+
+    const userAssignments = ["full_name = ?", "email = ?", "phone = ?"];
+    const userValues = [fullName, email, phone || null];
+    if (passwordChangeRequested) {
+      userAssignments.push("password = ?");
+      userValues.push(await bcrypt.hash(newPassword, 12));
+    }
+    userValues.push(req.auth.userId);
+    await connection.execute(
+      `UPDATE users SET ${userAssignments.join(", ")} WHERE user_id = ? AND role = 'doctor'`,
+      userValues
+    );
+
     await connection.execute(
       `UPDATE doctors
           SET specialization = ?, qualification = ?, license_number = ?,
@@ -756,21 +807,32 @@ router.put("/profile", async (req, res) => {
         WHERE doctor_id = ?`,
       [specialization || null, qualification || null, licenseNumber || null, experience, bio || null, req.doctorId]
     );
+
     await connection.commit();
-    res.json({ success: true, message: "Doctor profile updated." });
+    return res.json({
+      success: true,
+      message: "Doctor profile and account updated successfully. No Receptionist approval was required.",
+      user: {
+        userId: req.auth.userId,
+        fullName,
+        email,
+        phone: phone || null,
+        role: "doctor"
+      }
+    });
   } catch (error) {
     if (connection) await connection.rollback().catch(() => {});
     console.error("Doctor profile update failed:", error.code || error.message);
-    res.status(500).json({
+    res.status(error.code === "ER_DUP_ENTRY" ? 409 : 500).json({
       success: false,
-      message: "Unable to update your profile. Check that professional license details remain unique."
+      message: error.code === "ER_DUP_ENTRY"
+        ? "The email or professional license number is already in use."
+        : "Unable to update your profile. Please check your entries and try again."
     });
   } finally {
     if (connection) connection.release();
   }
-});
-
-router.get("/profile", async (req, res) => {
+});router.get("/profile", async (req, res) => {
   res.json({ success: true, profile: req.doctorProfile });
 });
 

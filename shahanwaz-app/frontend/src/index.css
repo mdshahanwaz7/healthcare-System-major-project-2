@@ -1882,7 +1882,7 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* =========================================================
-   HealthCare â€” Receptionist Front Desk workspace
+   HealthCare — Receptionist Front Desk workspace
    ========================================================= */
 
 .front-desk-layout {
@@ -4310,373 +4310,6 @@ body :is(p, li, label, td, th) {
   }
 }
 
-/* Dashboard header and doctor-feature hover feedback V2 */
-/* Main dashboard header cards: subtle size change on desktop hover. */
-@media (hover: hover) and (pointer: fine) {
-  .patient-welcome-banner,
-  .patient-chat-header,
-  .patient-error-banner,
-  .doc-stat-header,
-  .doc-hero,
-  .patient-details-header,
-  .doc-assistant-header,
-  .doc-chat-welcome,
-  .front-hero,
-  .front-doctor-modal-header,
-  .front-credential-header,
-  .front-dashboard-hero,
-  .front-welcome-banner,
-  .front-overview-hero,
-  .front-header-card {
-  transform-origin: center;
-  transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
-}
-  .patient-welcome-banner:hover,
-  .patient-chat-header:hover,
-  .patient-error-banner:hover,
-  .doc-stat-header:hover,
-  .doc-hero:hover,
-  .patient-details-header:hover,
-  .doc-assistant-header:hover,
-  .doc-chat-welcome:hover,
-  .front-hero:hover,
-  .front-doctor-modal-header:hover,
-  .front-credential-header:hover,
-  .front-dashboard-hero:hover,
-  .front-welcome-banner:hover,
-  .front-overview-hero:hover,
-  .front-header-card:hover {
-  transform: translateY(-3px) scale(1.012);
-  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.12);
-}
-
-/* Doctor feature, stat, and record cards: grow slightly on hover. */
-  .doc-record-card,
-  .doc-upcoming-card,
-  .doc-quick-card,
-  .doc-schedule-card,
-  .doc-stat,
-  .doc-record-grid > *,
-  .doc-feature-card,
-  .doc-feature-tile,
-  .doc-action-card,
-  .doc-quick-action,
-  .doc-overview-card,
-  .doc-summary-card,
-  .doc-appointment-card {
-  transform-origin: center;
-  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
-}
-  .doc-record-card:hover,
-  .doc-upcoming-card:hover,
-  .doc-quick-card:hover,
-  .doc-schedule-card:hover,
-  .doc-stat:hover,
-  .doc-record-grid > *:hover,
-  .doc-feature-card:hover,
-  .doc-feature-tile:hover,
-  .doc-action-card:hover,
-  .doc-quick-action:hover,
-  .doc-overview-card:hover,
-  .doc-summary-card:hover,
-  .doc-appointment-card:hover {
-  transform: translateY(-3px) scale(1.025);
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
-  z-index: 1;
-}
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .patient-welcome-banner,
-  .patient-chat-header,
-  .patient-error-banner,
-  .doc-stat-header,
-  .doc-hero,
-  .patient-details-header,
-  .doc-assistant-header,
-  .doc-chat-welcome,
-  .front-hero,
-  .front-doctor-modal-header,
-  .front-credential-header,
-  .front-dashboard-hero,
-  .front-welcome-banner,
-  .front-overview-hero,
-  .front-header-card,
-  .patient-welcome-banner:hover,
-  .patient-chat-header:hover,
-  .patient-error-banner:hover,
-  .doc-stat-header:hover,
-  .doc-hero:hover,
-  .patient-details-header:hover,
-  .doc-assistant-header:hover,
-  .doc-chat-welcome:hover,
-  .front-hero:hover,
-  .front-doctor-modal-header:hover,
-  .front-credential-header:hover,
-  .front-dashboard-hero:hover,
-  .front-welcome-banner:hover,
-  .front-overview-hero:hover,
-  .front-header-card:hover,
-  .doc-record-card,
-  .doc-upcoming-card,
-  .doc-quick-card,
-  .doc-schedule-card,
-  .doc-stat,
-  .doc-record-grid > *,
-  .doc-feature-card,
-  .doc-feature-tile,
-  .doc-action-card,
-  .doc-quick-action,
-  .doc-overview-card,
-  .doc-summary-card,
-  .doc-appointment-card,
-  .doc-record-card:hover,
-  .doc-upcoming-card:hover,
-  .doc-quick-card:hover,
-  .doc-schedule-card:hover,
-  .doc-stat:hover,
-  .doc-record-grid > *:hover,
-  .doc-feature-card:hover,
-  .doc-feature-tile:hover,
-  .doc-action-card:hover,
-  .doc-quick-action:hover,
-  .doc-overview-card:hover,
-  .doc-summary-card:hover,
-  .doc-appointment-card:hover {
-  transition: none !important;
-  transform: none !important;
-}
-}
-
-/* All-pages, all-features hover interactions V3 */
-/* Page headers and section heading cards throughout Patient, Doctor, and Receptionist pages. */
-@media (hover: hover) and (pointer: fine) {
-  :is(
-    .patient-welcome-banner,
-    .patient-page-intro,
-    .patient-section-heading,
-    .patient-topbar,
-    .doc-hero,
-    .doc-page-intro,
-    .doc-section-heading,
-    .front-page-intro,
-    .front-section-heading,
-    .front-topbar,
-    [class*="page-intro"],
-    [class*="section-heading"],
-    [class*="welcome-banner"],
-    [class*="header-card"]
-  ) {
-    transform-origin: center;
-    transition: transform 190ms ease, box-shadow 190ms ease, border-color 190ms ease, background-color 190ms ease;
-  }
-
-  :is(
-    .patient-welcome-banner,
-    .patient-page-intro,
-    .patient-section-heading,
-    .patient-topbar,
-    .doc-hero,
-    .doc-page-intro,
-    .doc-section-heading,
-    .front-page-intro,
-    .front-section-heading,
-    .front-topbar,
-    [class*="page-intro"],
-    [class*="section-heading"],
-    [class*="welcome-banner"],
-    [class*="header-card"]
-  ):hover {
-    transform: translateY(-3px) scale(1.012);
-    box-shadow: 0 16px 34px rgba(15, 23, 42, 0.12);
-    border-color: rgba(100, 116, 139, 0.38);
-    z-index: 2;
-  }
-
-  /* All role summary/stat cards, record cards, feature tiles, and modal detail cards. */
-  :is(
-    .patient-stat-card,
-    .doc-stat,
-    .front-stat-card,
-    .patient-record-list > *,
-    .doc-record-grid > *,
-    .patient-details-item,
-    [class*="feature-card"],
-    [class*="feature-tile"],
-    [class*="quick-action"],
-    [class*="summary-card"],
-    [class*="metric-card"],
-    [class*="record-card"],
-    [class*="appointment-card"],
-    [class*="doctor-card"],
-    [class*="patient-card"],
-    [class*="modal-card"]
-  ) {
-    transform-origin: center;
-    transition: transform 170ms ease, box-shadow 170ms ease, border-color 170ms ease, background-color 170ms ease;
-  }
-
-  :is(
-    .patient-stat-card,
-    .doc-stat,
-    .front-stat-card,
-    .patient-record-list > *,
-    .doc-record-grid > *,
-    .patient-details-item,
-    [class*="feature-card"],
-    [class*="feature-tile"],
-    [class*="quick-action"],
-    [class*="summary-card"],
-    [class*="metric-card"],
-    [class*="record-card"],
-    [class*="appointment-card"],
-    [class*="doctor-card"],
-    [class*="patient-card"],
-    [class*="modal-card"]
-  ):hover {
-    transform: translateY(-3px) scale(1.022);
-    box-shadow: 0 13px 28px rgba(15, 23, 42, 0.13);
-    border-color: rgba(100, 116, 139, 0.38);
-    z-index: 2;
-  }
-
-  /* Buttons and clickable feature controls respond consistently across every page. */
-  :is(
-    button,
-    a[role="button"],
-    [role="button"],
-    summary,
-    .patient-record-expand-button,
-    .front-text-action,
-    .doc-text-button
-  ) {
-    transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease;
-  }
-
-  :is(
-    button,
-    a[role="button"],
-    [role="button"],
-    summary,
-    .patient-record-expand-button,
-    .front-text-action,
-    .doc-text-button
-  ):hover {
-    transform: translateY(-1px) scale(1.025);
-    filter: brightness(1.025);
-  }
-
-  /* Table rows across the receptionist and doctor pages react as the pointer moves. */
-  :is(.front-table, .doc-table, .patient-table) tbody tr:hover > td {
-    background-color: rgba(100, 116, 139, 0.09);
-    transition: background-color 140ms ease;
-  }
-
-  :is(.front-clickable-row, tr[role="button"]) {
-    transition: box-shadow 150ms ease, background-color 150ms ease;
-  }
-}
-
-/* Keyboard and touch feedback for interactive elements remains visible without hover. */
-:is(
-  .patient-stat-card-interactive,
-  .doc-stat--interactive,
-  .front-stat-card--interactive,
-  .front-clickable-row,
-  button,
-  a[role="button"],
-  [role="button"]
-):focus-visible {
-  outline: 3px solid rgba(59, 130, 246, 0.58);
-  outline-offset: 3px;
-}
-
-:is(button, a[role="button"], [role="button"]):active {
-  transform: scale(0.985);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  :is(
-    .patient-welcome-banner,
-    .patient-page-intro,
-    .patient-section-heading,
-    .patient-topbar,
-    .doc-hero,
-    .doc-page-intro,
-    .doc-section-heading,
-    .front-page-intro,
-    .front-section-heading,
-    .front-topbar,
-    [class*="page-intro"],
-    [class*="section-heading"],
-    [class*="welcome-banner"],
-    [class*="header-card"],
-    .patient-stat-card,
-    .doc-stat,
-    .front-stat-card,
-    .patient-record-list > *,
-    .doc-record-grid > *,
-    .patient-details-item,
-    [class*="feature-card"],
-    [class*="feature-tile"],
-    [class*="quick-action"],
-    [class*="summary-card"],
-    [class*="metric-card"],
-    [class*="record-card"],
-    [class*="appointment-card"],
-    [class*="doctor-card"],
-    [class*="patient-card"],
-    [class*="modal-card"],
-    button,
-    a[role="button"],
-    [role="button"],
-    summary
-  ) {
-    transition: none !important;
-  }
-
-  :is(
-    .patient-welcome-banner,
-    .patient-page-intro,
-    .patient-section-heading,
-    .patient-topbar,
-    .doc-hero,
-    .doc-page-intro,
-    .doc-section-heading,
-    .front-page-intro,
-    .front-section-heading,
-    .front-topbar,
-    [class*="page-intro"],
-    [class*="section-heading"],
-    [class*="welcome-banner"],
-    [class*="header-card"],
-    .patient-stat-card,
-    .doc-stat,
-    .front-stat-card,
-    .patient-record-list > *,
-    .doc-record-grid > *,
-    .patient-details-item,
-    [class*="feature-card"],
-    [class*="feature-tile"],
-    [class*="quick-action"],
-    [class*="summary-card"],
-    [class*="metric-card"],
-    [class*="record-card"],
-    [class*="appointment-card"],
-    [class*="doctor-card"],
-    [class*="patient-card"],
-    [class*="modal-card"],
-    button,
-    a[role="button"],
-    [role="button"],
-    summary
-  ):hover,
-  :is(button, a[role="button"], [role="button"]):active {
-    transform: none !important;
-    filter: none !important;
-  }
-}
-
 /* PATIENT -> RECEPTIONIST APPOINTMENT REQUEST WORKFLOW */
 .patient-request-form-card,
 .patient-request-history,
@@ -4806,3 +4439,932 @@ body :is(p, li, label, td, th) {
   .patient-request-form-actions button { transition: none; }
 }
 /* END PATIENT -> RECEPTIONIST APPOINTMENT REQUEST WORKFLOW */
+
+
+
+/* SIDEBAR FEATURE EMERGE HOVER V1 */
+@media (hover: hover) and (pointer: fine) {
+  .patient-sidebar-nav .patient-nav-item,
+  .front-nav .front-nav-item,
+  .doc-nav .doc-nav-item {
+    transition:
+      transform 220ms ease,
+      box-shadow 220ms ease,
+      background-color 220ms ease,
+      border-color 220ms ease !important;
+    position: relative;
+  }
+
+  .patient-sidebar-nav .patient-nav-item:hover,
+  .patient-sidebar-nav .patient-nav-item:focus-visible,
+  .front-nav .front-nav-item:hover,
+  .front-nav .front-nav-item:focus-visible,
+  .doc-nav .doc-nav-item:hover,
+  .doc-nav .doc-nav-item:focus-visible {
+    transform: translate(1px, -0.5px) !important;
+    box-shadow: 0 3px 8px rgba(20, 70, 52, 0.10) !important;
+    filter: brightness(1.01);
+    z-index: 5;
+  }
+}
+/* END SIDEBAR FEATURE EMERGE HOVER V1 */
+
+/* FRONT DESK HEADING NO-HOVER V1 */
+.front-page-intro,
+.front-page-intro:hover,
+.front-page-heading,
+.front-page-heading:hover,
+.front-overview-heading,
+.front-overview-heading:hover,
+.front-overview-header,
+.front-overview-header:hover {
+    transform: none !important;
+    box-shadow: none !important;
+    filter: none !important;
+    z-index: auto !important;
+    transition: none !important;
+}
+/* END FRONT DESK HEADING NO-HOVER V1 */
+
+/* OUTER CARD ONLY HOVER V5 */
+@media (hover: hover) and (pointer: fine) {
+  main :is(
+    [class*="hero"],
+    [class*="card"],
+    [class*="feature"],
+    [class*="quick"],
+    [class*="action"],
+    [class*="stat"],
+    [class*="tile"],
+    [class*="widget"],
+    [class*="shortcut"]
+  ):hover *:hover {
+    transform: none !important;
+    translate: none !important;
+    scale: none !important;
+    rotate: none !important;
+    box-shadow: none !important;
+    filter: none !important;
+    animation: none !important;
+    transition: none !important;
+    text-decoration-thickness: initial !important;
+    text-underline-offset: initial !important;
+  }
+
+  /* Data rows must not gain an extra highlight inside a hovered card. */
+  main :is(
+    [class*="hero"],
+    [class*="card"],
+    [class*="feature"],
+    [class*="quick"],
+    [class*="action"],
+    [class*="stat"],
+    [class*="tile"],
+    [class*="widget"],
+    [class*="shortcut"]
+  ):hover table tbody tr:hover > td {
+    background-color: inherit !important;
+  }
+}
+/* END OUTER CARD ONLY HOVER V5 */
+
+/* ALL ROLES — OUTER CARD HOVER ONLY */
+@media (hover: hover) and (pointer: fine) {
+  main :is(
+    [class*="hero"],
+    [class*="card"],
+    [class*="feature"],
+    [class*="quick"],
+    [class*="action"],
+    [class*="stat"],
+    [class*="tile"],
+    [class*="widget"],
+    [class*="shortcut"],
+    [class*="page-intro"],
+    [class*="section-heading"]
+  ):hover *:hover {
+    transform: none !important;
+    translate: none !important;
+    scale: none !important;
+    rotate: none !important;
+    box-shadow: none !important;
+    filter: none !important;
+    animation: none !important;
+    text-decoration: none !important;
+    text-decoration-thickness: initial !important;
+    text-underline-offset: initial !important;
+  }
+}
+/* END ALL ROLES — OUTER CARD HOVER ONLY */
+
+/* ALL ROLES — PREVENT NESTED CARD TITLE HOVER */
+@media (hover: hover) and (pointer: fine) {
+  main :is(
+    [class*="hero"],
+    [class*="card"],
+    [class*="feature"],
+    [class*="quick"],
+    [class*="action"],
+    [class*="stat"],
+    [class*="tile"],
+    [class*="widget"],
+    [class*="shortcut"]
+  ):hover :is(h1, h2, h3, h4, h5, h6, p, span, strong, small, label, svg, i, [class*="title"], [class*="label"], [class*="icon"], [class*="text"]) {
+    transform: none !important;
+    translate: none !important;
+    scale: none !important;
+    rotate: none !important;
+    box-shadow: none !important;
+    filter: none !important;
+    animation: none !important;
+    text-decoration: none !important;
+  }
+}
+/* END NESTED CARD TITLE HOVER FIX */
+
+/* FINAL FIX — NESTED CARD/TITLE CONTAINERS MUST NOT HOVER INDEPENDENTLY */
+@media (hover: hover) and (pointer: fine) {
+  body main :is(
+    [class*="hero"],
+    [class*="card"],
+    [class*="feature"],
+    [class*="quick"],
+    [class*="action"],
+    [class*="stat"],
+    [class*="tile"],
+    [class*="widget"],
+    [class*="shortcut"],
+    [class*="title"],
+    [class*="label"],
+    [class*="text"],
+    [class*="icon"]
+  ):hover :is(
+    [class*="hero"],
+    [class*="card"],
+    [class*="feature"],
+    [class*="quick"],
+    [class*="action"],
+    [class*="stat"],
+    [class*="tile"],
+    [class*="widget"],
+    [class*="shortcut"],
+    [class*="title"],
+    [class*="label"],
+    [class*="text"],
+    [class*="icon"],
+    h1, h2, h3, h4, h5, h6, p, span, strong, small, svg, i
+  ):hover {
+    transform: none !important;
+    translate: none !important;
+    scale: none !important;
+    rotate: none !important;
+    box-shadow: none !important;
+    filter: none !important;
+    animation: none !important;
+    text-decoration: none !important;
+  }
+}
+/* END FINAL NESTED HOVER FIX */
+
+@media (hover: hover) and (pointer: fine) {
+  body main :is(
+    h1, h2, h3, h4, h5, h6,
+    [class*="heading"],
+    [class*="eyebrow"],
+    [class*="section-title"],
+    [class*="page-title"],
+    [class*="page-intro"],
+    [class*="overview-title"],
+    [class*="stat-top"],
+    [class*="section-label"]
+  ):hover,
+  body main button:hover,
+  body main [role="button"]:hover {
+    transform: none !important;
+    translate: none !important;
+    scale: none !important;
+    rotate: none !important;
+    box-shadow: none !important;
+    filter: none !important;
+    animation: none !important;
+    text-decoration: none !important;
+  }
+
+  /* Keep headings and refresh controls visually unchanged inside hovered cards. */
+  body main :is(
+    h1, h2, h3, h4, h5, h6,
+    [class*="heading"],
+    [class*="eyebrow"],
+    [class*="section-title"],
+    [class*="page-title"],
+    [class*="page-intro"],
+    [class*="overview-title"],
+    [class*="stat-top"],
+    [class*="section-label"],
+    button,
+    [role="button"]
+  ):hover {
+    background-color: inherit !important;
+    color: inherit !important;
+  }
+}
+
+/* FIX: Keep Show/Hide password control stationary */
+.password-wrap > button.show-password:hover,
+.password-wrap > button.show-password:active {
+  position: absolute !important;
+  top: 50% !important;
+  right: 10px !important;
+  bottom: auto !important;
+  left: auto !important;
+  transform: translateY(-50%) !important;
+  translate: none !important;
+  scale: none !important;
+  rotate: none !important;
+  color: #31846c !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  filter: none !important;
+  transition: none !important;
+}
+
+/* OUTER WELCOME CARDS HOVER FIX - ALL ROLES */
+body main .dashboard-hero,
+body main .patient-welcome-banner,
+body main .doc-hero,
+body main .front-hero {
+  transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease !important;
+}
+
+body main .dashboard-hero:hover,
+body main .patient-welcome-banner:hover,
+body main .doc-hero:hover,
+body main .front-hero:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: 0 15px 32px rgba(34, 104, 70, 0.16) !important;
+  border-color: rgba(55, 153, 104, 0.48) !important;
+}
+
+/* ALL ROLE TABLE ROW HOVER FIX - VERIFIED TARGETS */
+
+/* Keep the row and its contents stationary */
+body main table tbody > tr > td,
+body main table tbody > tr > th {
+  transition: background-color 180ms ease !important;
+}
+
+/* Highlight hovered rows across all roles */
+body main table tbody > tr:hover > td,
+body main table tbody > tr:hover > th,
+body main table.doc-table tbody > tr:hover > td,
+body main table.front-table tbody > tr:hover > td {
+  background-color: #edf7f0 !important;
+}
+
+/* Add a subtle accent to the first cell of the hovered row */
+body main table tbody > tr:hover > td:first-child,
+body main table.doc-table tbody > tr:hover > td:first-child,
+body main table.front-table tbody > tr:hover > td:first-child {
+  box-shadow: inset 3px 0 0 #57a779 !important;
+}
+
+/* FINAL FEATURE TITLE CARD HOVER - ALL THREE ROLES */
+
+/* Outer page-title cards */
+html body .doc-page-intro.doc-page-intro,
+html body .patient-page-intro.patient-page-intro,
+html body .front-page-intro.front-page-intro {
+  transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease !important;
+}
+
+/* Lift only the outer title card */
+html body .doc-page-intro.doc-page-intro:hover,
+html body .patient-page-intro.patient-page-intro:hover,
+html body .front-page-intro.front-page-intro:hover {
+  transform: translateY(-4px) !important;
+  translate: none !important;
+  scale: none !important;
+  rotate: none !important;
+  box-shadow: 0 14px 30px rgba(34, 104, 70, 0.16) !important;
+  border-color: rgba(55, 153, 104, 0.48) !important;
+}
+
+/* Prevent independent hover movement inside title cards */
+html body .doc-page-intro.doc-page-intro *:hover,
+html body .patient-page-intro.patient-page-intro *:hover,
+html body .front-page-intro.front-page-intro *:hover {
+  transform: none !important;
+  translate: none !important;
+  scale: none !important;
+  rotate: none !important;
+}
+
+/* RECEPTIONIST PROFILE FORM STYLES */
+.front-profile-intro {
+  align-items: center;
+}
+.front-profile-avatar {
+  display: grid;
+  flex: 0 0 52px;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border: 1px solid #d5e9dc;
+  border-radius: 16px;
+  color: #287551;
+  background: #edf7f0;
+  font-size: 21px;
+  font-weight: 800;
+}
+.front-profile-form input[readonly] {
+  color: #71847a;
+  background: #f2f6f3;
+  border-color: #e1e9e3;
+  cursor: not-allowed;
+}
+.front-profile-error {
+  margin: 0 0 14px;
+  padding: 11px 13px;
+  border: 1px solid #edcfca;
+  border-radius: 9px;
+  color: #98483e;
+  background: #fff3f0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+/* PATIENT PROFILE FORM V1 */
+.patient-profile-form { margin: 0; }
+.patient-profile-card {
+  padding: clamp(18px, 3vw, 30px);
+  border: 1px solid #e0ebe3;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .94);
+  box-shadow: 0 8px 24px rgba(37, 86, 59, .045);
+}
+.patient-profile-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+.patient-profile-heading h3 { margin: 6px 0 0; color: #294f3d; font-size: 17px; }
+.patient-profile-avatar {
+  display: grid;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border: 1px solid #d5e9dc;
+  border-radius: 15px;
+  color: #287551;
+  background: #edf7f0;
+  font-size: 20px;
+  font-weight: 800;
+}
+.patient-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 17px;
+}
+.patient-profile-grid label {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  min-width: 0;
+  color: #587765;
+  font-size: 11px;
+  font-weight: 700;
+}
+.patient-profile-grid input,
+.patient-profile-grid select,
+.patient-profile-grid textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid #dce8df;
+  border-radius: 10px;
+  outline: none;
+  color: #2d4e3c;
+  background: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+}
+.patient-profile-grid textarea { resize: vertical; line-height: 1.6; }
+.patient-profile-grid input:focus,
+.patient-profile-grid select:focus,
+.patient-profile-grid textarea:focus {
+  border-color: #68aa84;
+  box-shadow: 0 0 0 3px rgba(64, 145, 94, .10);
+}
+.patient-profile-grid input[readonly] { color: #7b9083; background: #f3f7f4; cursor: not-allowed; }
+.patient-profile-wide { grid-column: 1 / -1; }
+.patient-profile-help { margin: 17px 0 0; color: #7a8d81; font-size: 10px; line-height: 1.7; }
+.patient-profile-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+.patient-profile-actions button {
+  min-height: 39px;
+  padding: 0 16px;
+  border: 1px solid #d7e5da;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.patient-profile-secondary { color: #527461; background: #fff; }
+.patient-profile-save { border-color: #23744d !important; color: #fff; background: linear-gradient(125deg, #197251, #2a946b); }
+.patient-profile-actions button:disabled { opacity: .6; cursor: wait; }
+.patient-profile-notice, .patient-profile-error {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid #d3eadd;
+  border-radius: 10px;
+  color: #28734d;
+  background: #f0faf3;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.patient-profile-error { border-color: #edcfca; color: #98483e; background: #fff3f0; }
+@media (max-width: 700px) {
+  .patient-profile-grid { grid-template-columns: minmax(0, 1fr); }
+  .patient-profile-wide { grid-column: auto; }
+  .patient-profile-actions { flex-direction: column-reverse; }
+  .patient-profile-actions button { width: 100%; }
+}
+/* EMAIL_ONLY_PASSWORD_RECOVERY_V5 */
+.forgot-password-link {
+  display: block;
+  width: 100%;
+  margin: 2px 0 12px;
+  padding: 7px 0;
+  border: 0;
+  color: #287b62;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: right;
+  cursor: pointer;
+}
+.forgot-password-link:hover,
+.forgot-password-link:focus-visible {
+  color: #185e49;
+  text-decoration: underline;
+}
+.recovery-form {
+  margin-top: 8px;
+}
+.recovery-form-heading {
+  margin: 0 0 16px;
+}
+.recovery-form-heading h3 {
+  margin: 6px 0;
+  color: #244e40;
+  font-size: 19px;
+}
+.recovery-form-heading p {
+  margin: 0;
+  color: #71857b;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.recovery-back-link {
+  text-align: center;
+}
+.forgot-password-link:disabled {
+  cursor: wait;
+  opacity: .6;
+}
+/* DEDICATED PASSWORD RECOVERY PAGE LAYOUT */
+.recovery-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  padding: 28px 16px;
+  color: #23483a;
+  background: radial-gradient(circle at 12% 8%, rgba(91, 177, 131, .16), transparent 34%), linear-gradient(135deg, #f3faf5 0%, #edf5ef 52%, #f8fbf8 100%);
+}
+.recovery-card {
+  width: min(100%, 470px);
+  box-sizing: border-box;
+  padding: clamp(25px, 5vw, 42px);
+  border: 1px solid #deebe1;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, .97);
+  box-shadow: 0 24px 68px rgba(31, 80, 55, .13);
+}
+.recovery-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 29px;
+  color: #246e4e;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -.3px;
+}
+.recovery-brand-mark,
+.recovery-brand-mark svg {
+  display: block;
+  width: 42px;
+  height: 42px;
+}
+.recovery-eyebrow {
+  display: block;
+  margin-bottom: 9px;
+  color: #38845e;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.25px;
+  line-height: 1.6;
+}
+.recovery-card h1 {
+  margin: 0;
+  color: #1d4333;
+  font-size: clamp(25px, 5vw, 31px);
+  font-weight: 800;
+  letter-spacing: -.8px;
+  line-height: 1.2;
+}
+.recovery-description {
+  margin: 12px 0 24px;
+  color: #718378;
+  font-size: 13px;
+  line-height: 1.75;
+}
+.recovery-form {
+  display: grid;
+  gap: 10px;
+}
+.recovery-label {
+  margin-top: 5px;
+  color: #456454;
+  font-size: 12px;
+  font-weight: 700;
+}
+.recovery-input {
+  width: 100%;
+  min-height: 46px;
+  box-sizing: border-box;
+  padding: 11px 13px;
+  border: 1px solid #d8e6dc;
+  border-radius: 10px;
+  outline: none;
+  background: #fbfdfb;
+  color: #254737;
+  font: inherit;
+  font-size: 13px;
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+.recovery-input:focus {
+  border-color: #55a47b;
+  box-shadow: 0 0 0 3px rgba(65, 154, 104, .12);
+}
+.recovery-submit {
+  min-height: 46px;
+  margin-top: 9px;
+  padding: 11px 16px;
+  border: 0;
+  border-radius: 10px;
+  color: white;
+  background: linear-gradient(125deg, #207750, #319567);
+  box-shadow: 0 7px 17px rgba(37, 128, 82, .17);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: filter .18s ease, box-shadow .18s ease;
+}
+.recovery-submit:hover:not(:disabled) {
+  filter: brightness(1.04);
+  box-shadow: 0 9px 21px rgba(37, 128, 82, .22);
+}
+.recovery-submit:disabled,
+.recovery-back:disabled {
+  cursor: wait;
+  opacity: .65;
+}
+.recovery-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 19px;
+  padding: 5px 0;
+  border: 0;
+  color: #327b56;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.recovery-feedback {
+  margin-bottom: 14px;
+  padding: 11px 12px;
+  border: 1px solid;
+  border-radius: 9px;
+  font-size: 12px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.recovery-feedback-error {
+  border-color: #edcfca;
+  color: #98483e;
+  background: #fff4f1;
+}
+.recovery-feedback-success {
+  border-color: #cfe6d6;
+  color: #286847;
+  background: #f0faf3;
+}
+.recovery-security-note {
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid #edf2ed;
+  color: #8a9a90;
+  font-size: 10px;
+  line-height: 1.7;
+}
+@media (max-width: 480px) {
+  .recovery-card { border-radius: 18px; }
+}
+/* DOCTOR RECORD TABLE AND VIEW DETAILS STYLES */
+.doc-record-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #e2ece5;
+  border-radius: 13px;
+  background: #fff;
+}
+.doc-record-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.doc-record-table th {
+  padding: 12px 14px;
+  white-space: nowrap;
+  background: #f7fbf8;
+}
+.doc-record-table td {
+  padding: 12px 14px;
+  vertical-align: middle;
+}
+.doc-record-table tbody tr:last-child td { border-bottom: 0; }
+.doc-record-table-patient { display: grid; gap: 4px; min-width: 115px; }
+.doc-record-table-patient strong { color: #365c4a; font-size: 10px; }
+.doc-record-table-patient small { color: #83958a; font-size: 9px; }
+.doc-record-table-diagnosis { max-width: 210px; overflow-wrap: anywhere; }
+.doc-record-view-button {
+  display: inline-flex;
+  min-width: 62px;
+  min-height: 31px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 11px;
+  border: 1px solid #d5e8dc;
+  border-radius: 8px;
+  color: #287551;
+  background: #f5fbf6;
+  font-size: 10px;
+  font-weight: 750;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+.doc-record-view-button:hover { background: #e7f5eb; border-color: #9dc9ad; }
+.doc-record-view-button:focus-visible,
+.doc-record-detail-close:focus-visible { outline: 3px solid rgba(52, 143, 91, .28); outline-offset: 2px; }
+.doc-record-detail-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+  padding: 22px;
+  background: rgba(14, 36, 27, .58);
+  backdrop-filter: blur(5px);
+}
+.doc-record-detail-dialog {
+  width: min(960px, 100%);
+  max-height: min(90vh, 920px);
+  overflow: auto;
+  border: 1px solid rgba(255,255,255,.82);
+  border-radius: 19px;
+  background: #fff;
+  box-shadow: 0 26px 75px rgba(12, 39, 27, .28);
+}
+.doc-record-detail-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 21px 24px;
+  border-bottom: 1px solid #e7efe9;
+  background: rgba(255,255,255,.97);
+}
+.doc-record-detail-heading { display: flex; align-items: center; gap: 13px; min-width: 0; }
+.doc-record-detail-icon {
+  display: grid;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 12px;
+  color: #2e805f;
+  background: #e6f5ea;
+  font-size: 20px;
+}
+.doc-record-detail-heading h2 { margin: 5px 0 4px; color: #294d3c; font-size: 19px; overflow-wrap: anywhere; }
+.doc-record-detail-heading p { margin: 0; color: #7b9083; font-size: 10px; }
+.doc-record-detail-close {
+  display: grid;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid #e1ebe4;
+  border-radius: 9px;
+  color: #597466;
+  background: #f8fbf8;
+  font-size: 23px;
+  line-height: 1;
+}
+.doc-record-detail-content { padding: 22px 24px; }
+.doc-record-detail-content > h3,
+.doc-record-detail-medicines > h3 { margin: 0 0 13px; color: #365c4a; font-size: 13px; }
+.doc-record-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; }
+.doc-record-detail-field { min-width: 0; padding: 12px 13px; border: 1px solid #e7efe9; border-radius: 10px; background: #f9fcfa; }
+.doc-record-detail-field.is-long { grid-column: 1 / -1; }
+.doc-record-detail-field dt { margin-bottom: 6px; color: #7c9184; font-size: 9px; font-weight: 750; letter-spacing: .35px; text-transform: uppercase; }
+.doc-record-detail-field dd { margin: 0; color: #355948; font-size: 11px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
+.doc-record-detail-medicines { margin-top: 23px; }
+.doc-record-medicine-table-wrap { overflow-x: auto; border: 1px solid #e2ece5; border-radius: 11px; }
+.doc-record-medicine-table { width: 100%; min-width: 630px; border-collapse: separate; border-spacing: 0; text-align: left; font-size: 10px; }
+.doc-record-medicine-table th { padding: 11px 12px; color: #7e9085; background: #f7fbf8; font-size: 9px; white-space: nowrap; }
+.doc-record-medicine-table td { padding: 11px 12px; color: #456858; border-top: 1px solid #edf2ee; vertical-align: top; white-space: pre-wrap; overflow-wrap: anywhere; }
+.doc-record-detail-footer { display: flex; justify-content: flex-end; padding: 15px 24px; border-top: 1px solid #e7efe9; background: #fbfdfb; }
+@media (max-width: 640px) {
+  .doc-record-detail-overlay { align-items: flex-start; padding: 10px; }
+  .doc-record-detail-dialog { max-height: calc(100vh - 20px); border-radius: 14px; }
+  .doc-record-detail-header { padding: 16px; }
+  .doc-record-detail-content { padding: 16px; }
+  .doc-record-detail-grid { grid-template-columns: minmax(0, 1fr); }
+  .doc-record-detail-field.is-long { grid-column: auto; }
+  .doc-record-detail-footer { padding: 12px 16px; }
+}
+/* PATIENT DISCHARGE TABLE AND VIEW DETAILS STYLES V1 */
+.patient-discharge-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 14px 0 4px;
+  border: 1px solid rgba(43, 105, 88, 0.14);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 10px 28px rgba(28, 82, 66, 0.055);
+}
+.patient-discharge-table {
+  width: 100%;
+  min-width: 690px;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: left;
+  font-size: 12px;
+}
+.patient-discharge-table th {
+  padding: 14px 16px;
+  color: #55766d;
+  background: #f1f8f4;
+  border-bottom: 1px solid rgba(43, 105, 88, 0.14);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.patient-discharge-table td {
+  padding: 14px 16px;
+  color: #355b51;
+  border-bottom: 1px solid rgba(43, 105, 88, 0.09);
+  vertical-align: middle;
+  line-height: 1.55;
+}
+.patient-discharge-table tbody tr:last-child td { border-bottom: 0; }
+.patient-discharge-table tbody tr:hover { background: rgba(231, 246, 238, 0.48); }
+.patient-discharge-record-id { color: #176b56; font-weight: 800; }
+.patient-discharge-date-cell { white-space: nowrap; }
+.patient-discharge-diagnosis-cell { max-width: 240px; overflow-wrap: anywhere; font-weight: 700; }
+.patient-discharge-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 9px;
+  border-radius: 999px;
+  color: #46685e;
+  background: #edf4f0;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.patient-discharge-status-discharged,
+.patient-discharge-status-completed { color: #176b56; background: #def5e8; }
+.patient-discharge-view-button {
+  min-height: 34px;
+  padding: 7px 13px;
+  border: 1px solid rgba(25, 126, 104, 0.24);
+  border-radius: 10px;
+  color: #126552;
+  background: #effaf4;
+  font-size: 11px;
+  font-weight: 800;
+  transition: background 0.16s ease, border-color 0.16s ease;
+}
+.patient-discharge-view-button:hover { background: #ddf5e8; border-color: rgba(25, 126, 104, 0.42); }
+.patient-discharge-view-button:focus-visible,
+.patient-discharge-modal button:focus-visible { outline: 3px solid rgba(25, 126, 104, 0.3); outline-offset: 2px; }
+.patient-discharge-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 22px;
+  overflow-y: auto;
+  background: rgba(15, 39, 32, 0.54);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+.patient-discharge-modal {
+  width: min(900px, 100%);
+  max-height: min(88vh, 920px);
+  overflow: auto;
+  padding: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 22px;
+  background: #fbfefc;
+  box-shadow: 0 28px 90px rgba(7, 35, 26, 0.3);
+}
+.patient-discharge-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 20px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(43, 105, 88, 0.14);
+}
+.patient-discharge-modal-header h2 { margin: 7px 0 6px; color: #173a36; font-family: Manrope, sans-serif; font-size: clamp(20px, 3vw, 28px); line-height: 1.25; }
+.patient-discharge-modal-header p { margin: 0; color: #718984; font-size: 12px; line-height: 1.7; }
+.patient-discharge-modal-close {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(43, 105, 88, 0.13);
+  border-radius: 11px;
+  color: #345d54;
+  background: #f0f7f3;
+  font-size: 25px;
+  line-height: 1;
+}
+.patient-discharge-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+.patient-discharge-detail-field {
+  min-width: 0;
+  padding: 14px 15px;
+  border: 1px solid rgba(43, 105, 88, 0.12);
+  border-radius: 13px;
+  background: #fff;
+}
+.patient-discharge-detail-field dt { margin: 0 0 7px; color: #718984; font-size: 10px; font-weight: 800; letter-spacing: 0.055em; text-transform: uppercase; overflow-wrap: anywhere; }
+.patient-discharge-detail-field dd { margin: 0; color: #244a40; font-size: 12px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+.patient-discharge-modal-actions { display: flex; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(43, 105, 88, 0.12); }
+.patient-discharge-modal-actions button {
+  min-height: 40px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 11px;
+  color: #fff;
+  background: #197e68;
+  font-size: 12px;
+  font-weight: 800;
+}
+.patient-discharge-modal-actions button:hover { background: #126552; }
+@media (max-width: 640px) {
+  .patient-discharge-modal-backdrop { align-items: flex-start; padding: 10px; }
+  .patient-discharge-modal { max-height: calc(100vh - 20px); padding: 18px; border-radius: 17px; }
+  .patient-discharge-detail-grid { grid-template-columns: minmax(0, 1fr); }
+  .patient-discharge-modal-header { gap: 10px; }
+}

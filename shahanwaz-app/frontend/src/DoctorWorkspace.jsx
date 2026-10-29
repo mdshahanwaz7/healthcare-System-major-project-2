@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import HealthcareProfileIcon from "./HealthcareProfileIcon";
 import "./clinical-chat.css";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:5001").replace(/\/$/, "");
@@ -12,8 +13,7 @@ const DOCTOR_NAV = [
   { id: "care", label: "Discharge Care", icon: "♡" },
   { id: "assistant", label: "Clinical Assistant", icon: "✧" },
   { id: "ocr", label: "Prescription OCR", icon: "▧" },
-  { id: "registration", label: "Doctor Registration", icon: "✚" },
-  { id: "profile", label: "My Profile", icon: "⚙" },
+  { id: "profile", label: "My Profile", icon: "profile" },
 ];
 
 async function doctorRequest(path, options = {}) {
@@ -96,63 +96,180 @@ function DoctorStat({ label, value, icon, detail, onClick }) {
   );
 }
 
+/* DOCTOR RECORDS TABLE WITH VIEW DETAILS */
 function RecordCards({ items, kind, emptyTitle, emptyDetail }) {
+  const [selectedRecord, setSelectedRecord] = useState(null);
+
+  useEffect(() => {
+    if (!selectedRecord) return undefined;
+    function handleEscape(event) {
+      if (event.key === "Escape") setSelectedRecord(null);
+    }
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [selectedRecord]);
+
   if (!items?.length) return <DoctorEmpty title={emptyTitle} detail={emptyDetail} />;
 
-  return (
-    <div className="doc-record-grid">
-      {items.map((item, index) => {
-        const entries = Object.entries(item).filter(([key, value]) =>
-          !/password|token|secret|file_path|binary_data|blob_data/i.test(key) &&
-          value !== null && value !== undefined && value !== ""
-        );
-        const heading = item.patient_name || item.diagnosis || item.title ||
-          item.name || item.prescription_name || item.discharge_date ||
-          `${kind} ${index + 1}`;
+  const recordId = (item) => kind === "Prescription"
+    ? item.prescription_id ?? item.id ?? "—"
+    : item.discharge_id ?? item.id ?? "—";
+  const patientLabel = (item) => item.patient_name || item.full_name ||
+    (item.patient_id ? `Patient #${item.patient_id}` : item.patient_email || "—");
+  const recordDate = (item) => item.prescription_date || item.discharge_date ||
+    item.created_at || item.createdAt || item.updated_at || null;
+  const medicinesFor = (record) => {
+    const raw = record?.medicines;
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === "string") {
+      try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : parsed && typeof parsed === "object" ? [parsed] : [];
+      } catch {
+        return [];
+      }
+    }
+    return raw && typeof raw === "object" ? [raw] : [];
+  };
+  const visibleFields = selectedRecord
+    ? Object.entries(selectedRecord).filter(([key, value]) =>
+        key !== "medicines" &&
+        !/password|token|secret|file_path|binary_data|blob_data/i.test(key) &&
+        value !== null && value !== undefined && value !== ""
+      )
+    : [];
+  const detailValue = (key, value) => {
+    if (value === null || value === undefined || value === "") return "—";
+    if (typeof value === "string" && /date|_at|timestamp/i.test(key)) {
+      const parsed = new Date(value);
+      if (!Number.isNaN(parsed.getTime())) return parsed.toLocaleString();
+    }
+    return valueText(value);
+  };
 
-        return (
-          <article className="doc-record-card" key={item.prescription_id || item.discharge_id || item.job_id || item.id || index}>
-            <div className="doc-record-heading">
-              <span>{kind === "Prescription" ? "✚" : kind === "Discharge care" ? "♡" : "▧"}</span>
-              <div><h3>{heading}</h3><small>{kind} record</small></div>
-            </div>
-            <dl>
-              {entries.slice(0, 14).map(([key, value]) => (
-                <div key={key}><dt>{friendlyKey(key)}</dt><dd>{valueText(value)}</dd></div>
-              ))}
-            </dl>
-            {entries.length > 14 && (
-              <details className="doc-record-more">
-                <summary>Show {entries.length - 14} additional fields</summary>
-                <dl>
-                  {entries.slice(14).map(([key, value]) => (
-                    <div key={key}><dt>{friendlyKey(key)}</dt><dd>{valueText(value)}</dd></div>
-                  ))}
-                </dl>
-              </details>
-            )}
-            {Array.isArray(item.medicines) && item.medicines.length > 0 && (
-              <div className="doc-medicine-list">
-                <strong>Medicines</strong>
-                {item.medicines.map((medicine, medicineIndex) => (
-                  <div key={medicine.medicine_id || medicineIndex}>
-                    <b>{medicine.medicine_name || medicine.medication_name || medicine.name || "Medicine"}</b>
-                    <span>
-                      {[medicine.dosage || medicine.dose, medicine.frequency, medicine.duration]
-                        .filter(Boolean).join(" · ") || "See prescription details"}
-                    </span>
+  return (
+    <>
+      <div className="doc-record-table-wrap">
+        <table className="doc-table doc-record-table">
+          <thead>
+            <tr>
+              <th>Record ID</th>
+              <th>Patient</th>
+              <th>Date</th>
+              <th>Diagnosis</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item, index) => (
+              <tr key={item.prescription_id || item.discharge_id || item.job_id || item.id || index}>
+                <td>#{recordId(item)}</td>
+                <td>
+                  <div className="doc-record-table-patient">
+                    <strong>{patientLabel(item)}</strong>
+                    {item.patient_email && <small>{item.patient_email}</small>}
+                  </div>
+                </td>
+                <td>{dateText(recordDate(item))}</td>
+                <td className="doc-record-table-diagnosis">{item.diagnosis || item.title || "—"}</td>
+                <td><span className="doc-status-pill">{item.status || (kind === "Prescription" ? "Recorded" : "Discharged")}</span></td>
+                <td>
+                  <button
+                    type="button"
+                    className="doc-record-view-button"
+                    onClick={() => setSelectedRecord(item)}
+                    aria-label={`View ${kind} record ${recordId(item)}`}
+                  >
+                    View
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {selectedRecord && (
+        <div
+          className="doc-record-detail-overlay"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setSelectedRecord(null);
+          }}
+        >
+          <section
+            className="doc-record-detail-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="doc-record-detail-title"
+          >
+            <header className="doc-record-detail-header">
+              <div className="doc-record-detail-heading">
+                <div>
+                  
+                  <h2 id="doc-record-detail-title">{patientLabel(selectedRecord)}</h2>
+</div>
+              </div>
+              <button
+                type="button"
+                className="doc-record-detail-close"
+                onClick={() => setSelectedRecord(null)}
+                aria-label="Close record details"
+              >
+                ×
+              </button>
+            </header>
+
+            <div className="doc-record-detail-content">
+              <h3>Record details</h3>
+              <dl className="doc-record-detail-grid">
+                {visibleFields.map(([key, value]) => (
+                  <div key={key} className={/instructions|warning|diagnosis|summary|notes|allerg/i.test(key) ? "doc-record-detail-field is-long" : "doc-record-detail-field"}>
+                    <dt>{friendlyKey(key)}</dt>
+                    <dd>{detailValue(key, value)}</dd>
                   </div>
                 ))}
-              </div>
-            )}
-          </article>
-        );
-      })}
-    </div>
+              </dl>
+
+              {medicinesFor(selectedRecord).length > 0 && (
+                <section className="doc-record-detail-medicines">
+                  <h3>Medicines</h3>
+                  <div className="doc-record-medicine-table-wrap">
+                    <table className="doc-record-medicine-table">
+                      <thead>
+                        <tr><th>Medicine</th><th>Dosage</th><th>Frequency</th><th>Duration</th><th>Route</th><th>Instructions</th></tr>
+                      </thead>
+                      <tbody>
+                        {medicinesFor(selectedRecord).map((medicine, index) => (
+                          <tr key={medicine.medicine_id || index}>
+                            <td>{medicine.medicine_name || medicine.medication_name || medicine.name || "Medicine"}</td>
+                            <td>{valueText(medicine.dosage || medicine.dose)}</td>
+                            <td>{valueText(medicine.frequency)}</td>
+                            <td>{valueText(medicine.duration)}</td>
+                            <td>{valueText(medicine.route)}</td>
+                            <td>{valueText(medicine.instructions)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              )}
+            </div>
+
+            <footer className="doc-record-detail-footer">
+              <button type="button" className="doc-outline-button" onClick={() => setSelectedRecord(null)}>
+                Back to records
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
+    </>
   );
 }
-
-export default function DoctorWorkspace({ user, onLogout }) {
+export default function DoctorWorkspace({ user, onLogout, onUserUpdate }) {
   const [section, setSection] = useState("overview");
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -179,7 +296,11 @@ export default function DoctorWorkspace({ user, onLogout }) {
     bio: "",
     email: user.email || "",
   });
-  const [scheduleForm, setScheduleForm] = useState({
+  const [credentialForm, setCredentialForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmNewPassword: "",
+  });  const [scheduleForm, setScheduleForm] = useState({
     dayOfWeek: "",
     startTime: "09:00",
     endTime: "17:00",
@@ -199,18 +320,6 @@ export default function DoctorWorkspace({ user, onLogout }) {
     medications: "", dischargeDate: new Date().toISOString().slice(0, 10), followUpDate: "",
   });
   const [assistantQuestion, setAssistantQuestion] = useState("");
-  const [registrationForm, setRegistrationForm] = useState({
-    fullName: "",
-    email: "",
-    password: "",
-    phone: "",
-    doctorType: "OPD",
-    specialization: "",
-    qualification: "",
-    licenseNumber: "",
-    experienceYears: "",
-    bio: "",
-  });
   const [assistantMessages, setAssistantMessages] = useState([]);
   const [assistantLoading, setAssistantLoading] = useState(false);
   const assistantChatEndRef = useRef(null);
@@ -492,66 +601,6 @@ export default function DoctorWorkspace({ user, onLogout }) {
     }
   }
 
-  async function submitDoctorRegistration(event) {
-    event.preventDefault();
-    setError("");
-    setNotice("");
-
-    if (!registrationForm.fullName.trim() ||
-        !registrationForm.email.trim() ||
-        !registrationForm.password ||
-        !registrationForm.specialization.trim() ||
-        !registrationForm.licenseNumber.trim()) {
-      setError("Complete all required doctor registration fields.");
-      return;
-    }
-
-    setSaving(true);
-
-    try {
-      const result = await doctorRequest("/api/doctor-registration", {
-        method: "POST",
-        body: JSON.stringify({
-          fullName: registrationForm.fullName.trim(),
-          email: registrationForm.email.trim().toLowerCase(),
-          password: registrationForm.password,
-          phone: registrationForm.phone.trim(),
-          doctorType: registrationForm.doctorType,
-          specialization: registrationForm.specialization.trim(),
-          qualification: registrationForm.qualification.trim(),
-          licenseNumber: registrationForm.licenseNumber.trim(),
-          experienceYears: registrationForm.experienceYears === ""
-            ? null
-            : Number(registrationForm.experienceYears),
-          bio: registrationForm.bio.trim(),
-        }),
-      });
-
-      setNotice(
-        result.message ||
-        "Doctor application submitted. Await receptionist approval."
-      );
-
-      setRegistrationForm({
-        fullName: "",
-        email: "",
-        password: "",
-        phone: "",
-        doctorType: "OPD",
-        specialization: "",
-        qualification: "",
-        licenseNumber: "",
-        experienceYears: "",
-        bio: "",
-      });
-    } catch (requestError) {
-      setError(
-        requestError.message || "Unable to submit doctor registration."
-      );
-    } finally {
-      setSaving(false);
-    }
-  }
   async function uploadPrescription(event) {
     event.preventDefault();
     if (!ocrFile || !ocrPatientId) {
@@ -586,29 +635,49 @@ export default function DoctorWorkspace({ user, onLogout }) {
     setSaving(true);
     setError("");
     setNotice("");
+
+    const email = profileForm.email.trim().toLowerCase();
+    const currentEmail = String(user.email || "").trim().toLowerCase();
+    const emailChanged = email !== currentEmail;
+    const passwordChangeRequested = credentialForm.newPassword.length > 0;
+
+    if (passwordChangeRequested && credentialForm.newPassword !== credentialForm.confirmNewPassword) {
+      setSaving(false);
+      setError("The new password and confirmation do not match.");
+      return;
+    }
+    if ((emailChanged || passwordChangeRequested) && !credentialForm.currentPassword) {
+      setSaving(false);
+      setError("Enter your current password to change your sign-in email or password.");
+      return;
+    }
+
     try {
       const result = await doctorRequest("/api/doctor/profile", {
         method: "PUT",
         body: JSON.stringify({
           fullName: profileForm.fullName,
+          email,
           phone: profileForm.phone,
           specialization: profileForm.specialization,
           qualification: profileForm.qualification,
           licenseNumber: profileForm.licenseNumber,
           experienceYears: profileForm.experienceYears,
           bio: profileForm.bio,
+          currentPassword: credentialForm.currentPassword,
+          newPassword: credentialForm.newPassword,
         }),
       });
-      setNotice(result.message || "Profile updated.");
+      if (result.user && onUserUpdate) onUserUpdate(result.user);
+      setCredentialForm({ currentPassword: "", newPassword: "", confirmNewPassword: "" });
+      setNotice(result.message || "Profile and account updated successfully.");
       await loadSection("profile");
     } catch (saveError) {
       setError(saveError.message || "Unable to update your profile.");
     } finally {
       setSaving(false);
     }
-  }
-
-  const activeItem = DOCTOR_NAV.find((item) => item.id === section);
+  }  const activeItem = DOCTOR_NAV.find((item) => item.id === section);
   const filteredPatients = patients.filter((patient) => {
     const term = patientSearch.trim().toLowerCase();
     if (!term) return true;
@@ -1107,14 +1176,14 @@ export default function DoctorWorkspace({ user, onLogout }) {
   function renderProfile() {
     return (
       <>
-        <div className="doc-page-intro"><div><span className="doc-eyebrow">ACCOUNT & CREDENTIALS</span><h2>My Profile</h2><p>Maintain your doctor contact and professional profile. Your sign-in email is read-only.</p></div></div>
+        <div className="doc-page-intro"><div><span className="doc-eyebrow">ACCOUNT & CREDENTIALS</span><h2>My Profile</h2><p>Update your professional details and sign-in credentials directly. These changes do not require Receptionist approval.</p></div></div>
         <form className="doc-form-panel" onSubmit={saveProfile}>
           <div className="doc-form-grid">
             <label>Full name *
               <input required maxLength={100} value={profileForm.fullName} onChange={(e) => setProfileForm({ ...profileForm, fullName: e.target.value })} />
             </label>
-            <label>Email address
-              <input readOnly value={profileForm.email} />
+            <label>Email address *
+              <input type="email" required maxLength={100} autoComplete="email" value={profileForm.email} onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })} />
             </label>
             <label>Phone
               <input maxLength={20} value={profileForm.phone} onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })} />
@@ -1135,219 +1204,26 @@ export default function DoctorWorkspace({ user, onLogout }) {
               <textarea rows={4} maxLength={5000} value={profileForm.bio} onChange={(e) => setProfileForm({ ...profileForm, bio: e.target.value })} />
             </label>
           </div>
-          <div className="doc-form-actions"><button className="doc-primary-button" disabled={saving}>{saving ? "Saving…" : "Save profile changes"}</button></div>
-        </form>
-      </>
-    );
-  }
 
-  function renderRegistration() {
-    return (
-      <>
-        <div className="doc-page-intro">
-          <div>
-            <span className="doc-eyebrow">DOCTOR ONBOARDING</span>
-            <h2>Doctor Registration</h2>
-            <p>
-              Submit a separate doctor's account and professional details
-              for Receptionist review.
-            </p>
+          <div className="doc-clinical-note">
+            <strong>Sign-in security:</strong> Your updated email is saved to your own Doctor account. To change your email or password, enter your current password below. No Receptionist application is created.
           </div>
-        </div>
-
-        <div className="doc-clinical-note">
-          <strong>Separate account:</strong> You are signed in as
-          {" "}{user.fullName || "Doctor"} ({user.email || "current account"}).
-          This form registers another doctor; it does not change your own
-          My Profile information. The new account remains pending until
-          Receptionist approval.
-        </div>
-
-        <form
-          className="doc-form-panel"
-          onSubmit={submitDoctorRegistration}
-        >
-          <div className="doc-form-title">
-            <div>
-              <span className="doc-eyebrow">NEW ACCOUNT APPLICATION</span>
-              <h3>Doctor professional details</h3>
-            </div>
-          </div>
-
           <div className="doc-form-grid">
-            <label>
-              Full name *
-              <input
-                required
-                maxLength={100}
-                autoComplete="name"
-                value={registrationForm.fullName}
-                onChange={(e) => setRegistrationForm({
-                  ...registrationForm,
-                  fullName: e.target.value
-                })}
-                placeholder="Doctor's full name"
-              />
+            <label>Current password <span>(required when changing email/password)</span>
+              <input type="password" autoComplete="current-password" value={credentialForm.currentPassword} onChange={(e) => setCredentialForm({ ...credentialForm, currentPassword: e.target.value })} />
             </label>
-
-            <label>
-              New sign-in email *
-              <input
-                required
-                type="email"
-                maxLength={100}
-                autoComplete="email"
-                value={registrationForm.email}
-                onChange={(e) => setRegistrationForm({
-                  ...registrationForm,
-                  email: e.target.value
-                })}
-                placeholder="doctor@example.com"
-              />
+            <label>New password <span>(leave blank to keep current password)</span>
+              <input type="password" minLength={8} maxLength={72} autoComplete="new-password" value={credentialForm.newPassword} onChange={(e) => setCredentialForm({ ...credentialForm, newPassword: e.target.value })} />
             </label>
-
-            <label>
-              Initial password *
-              <input
-                required
-                type="password"
-                minLength={8}
-                maxLength={72}
-                autoComplete="new-password"
-                value={registrationForm.password}
-                onChange={(e) => setRegistrationForm({
-                  ...registrationForm,
-                  password: e.target.value
-                })}
-                placeholder="At least 8 characters"
-              />
-            </label>
-
-            <label>
-              Phone number
-              <input
-                type="tel"
-                maxLength={20}
-                autoComplete="tel"
-                value={registrationForm.phone}
-                onChange={(e) => setRegistrationForm({
-                  ...registrationForm,
-                  phone: e.target.value
-                })}
-                placeholder="Contact number"
-              />
-            </label>
-
-            <label>
-              Doctor category *
-              <select
-                required
-                value={registrationForm.doctorType}
-                onChange={(e) => setRegistrationForm({
-                  ...registrationForm,
-                  doctorType: e.target.value
-                })}
-              >
-                <option value="OPD">OPD</option>
-                <option value="Surgeon">Surgeon</option>
-                <option value="General Physician">General Physician</option>
-                <option value="Other">Other</option>
-              </select>
-            </label>
-
-            <label>
-              Specialization *
-              <input
-                required
-                maxLength={150}
-                value={registrationForm.specialization}
-                onChange={(e) => setRegistrationForm({
-                  ...registrationForm,
-                  specialization: e.target.value
-                })}
-                placeholder="e.g. General Medicine, Cardiology"
-              />
-            </label>
-
-            <label>
-              Qualification
-              <input
-                maxLength={150}
-                value={registrationForm.qualification}
-                onChange={(e) => setRegistrationForm({
-                  ...registrationForm,
-                  qualification: e.target.value
-                })}
-                placeholder="Relevant medical qualifications"
-              />
-            </label>
-
-            <label>
-              Professional license number *
-              <input
-                required
-                maxLength={100}
-                value={registrationForm.licenseNumber}
-                onChange={(e) => setRegistrationForm({
-                  ...registrationForm,
-                  licenseNumber: e.target.value
-                })}
-                placeholder="Medical registration/license number"
-              />
-            </label>
-
-            <label>
-              Years of experience
-              <input
-                type="number"
-                min={0}
-                max={70}
-                step={1}
-                value={registrationForm.experienceYears}
-                onChange={(e) => setRegistrationForm({
-                  ...registrationForm,
-                  experienceYears: e.target.value
-                })}
-                placeholder="Years"
-              />
-            </label>
-
-            <label className="full">
-              Professional profile
-              <textarea
-                rows={4}
-                maxLength={5000}
-                value={registrationForm.bio}
-                onChange={(e) => setRegistrationForm({
-                  ...registrationForm,
-                  bio: e.target.value
-                })}
-                placeholder="Professional background and relevant experience"
-              />
+            <label>Confirm new password
+              <input type="password" minLength={8} maxLength={72} autoComplete="new-password" value={credentialForm.confirmNewPassword} onChange={(e) => setCredentialForm({ ...credentialForm, confirmNewPassword: e.target.value })} />
             </label>
           </div>
-
-          <p className="doc-clinical-note">
-            Use accurate professional credentials. The Receptionist must
-            review the application before this new account receives Doctor
-            portal access. Use a unique email address not already registered.
-          </p>
-
-          <div className="doc-form-actions">
-            <button
-              type="submit"
-              className="doc-primary-button"
-              disabled={saving}
-            >
-              {saving ? "Submitting application…" : "Submit doctor registration"}
-            </button>
-          </div>
+          <div className="doc-form-actions"><button className="doc-primary-button" disabled={saving}>{saving ? "Saving…" : "Save profile and account changes"}</button></div>
         </form>
       </>
     );
-  }
-
-  return (
+  }  return (
     <div className="doc-layout">
       <aside className="doc-sidebar">
         <a className="doc-brand" href="#" onClick={(event) => { event.preventDefault(); goTo("overview"); }}>
@@ -1361,7 +1237,7 @@ export default function DoctorWorkspace({ user, onLogout }) {
         <nav className="doc-nav" aria-label="Doctor navigation">
           {DOCTOR_NAV.map((item) => (
             <button type="button" key={item.id} className={`doc-nav-item ${section === item.id ? "active" : ""}`} onClick={() => goTo(item.id)} aria-current={section === item.id ? "page" : undefined}>
-              <span>{item.icon}</span><b>{item.label}</b>{section === item.id && <i />}
+              <span>{item.id === "profile" ? <HealthcareProfileIcon /> : item.icon}</span><b>{item.label}</b>{section === item.id && <i />}
             </button>
           ))}
         </nav>
@@ -1392,7 +1268,6 @@ export default function DoctorWorkspace({ user, onLogout }) {
           {!error && section === "assistant" && renderClinicalAssistant()}
           {!error && section === "ocr" && renderOCR()}
           {!error && section === "profile" && renderProfile()}
-          {!error && section === "registration" && renderRegistration()}
         </div>
         <footer className="doc-footer"><span>HealthCare <i>•</i> Doctor workspace</span><span>Role-protected APIs · Unified healthcare platform</span></footer>
       </main>

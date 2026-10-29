@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import HealthcareProfileIcon from "./HealthcareProfileIcon";
 
 const API_BASE = (
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5001"
@@ -10,6 +11,7 @@ const NAV_ITEMS = [
   { id: "doctors", label: "Doctors", icon: "✚" },
   { id: "appointments", label: "Appointments", icon: "▦" },
   { id: "appointment-requests", label: "Patient Intake Forms", icon: "☷" },
+  { id: "profile", label: "My Profile", icon: "profile" },
 ];
 
 async function receptionistRequest(path, options = {}) {
@@ -97,7 +99,7 @@ function FrontDeskStat({ icon, label, value, detail, tone, onClick }) {
   );
 }
 
-export default function ReceptionistWorkspace({ user, onLogout }) {
+export default function ReceptionistWorkspace({ user, onLogout, onUserUpdate }) {
   const [section, setSection] = useState("dashboard");
   const [summary, setSummary] = useState({
     registeredPatients: 0,
@@ -129,6 +131,12 @@ export default function ReceptionistWorkspace({ user, onLogout }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [patientFormOpen, setPatientFormOpen] = useState(false);
+  // RECEPTIONIST PROFILE STATE
+  const [profileForm, setProfileForm] = useState({
+    fullName: user.fullName || "",
+    phone: user.phone || "",
+  });
+  const [profileError, setProfileError] = useState("");
   const [newPatientCredentials, setNewPatientCredentials] = useState(null);
   const [appointmentFormOpen, setAppointmentFormOpen] = useState(false);
 
@@ -398,6 +406,122 @@ export default function ReceptionistWorkspace({ user, onLogout }) {
       setError(declineError.message || "Unable to update this request.");
     }
   }
+  // RECEPTIONIST PROFILE UI: SAVE + RENDER
+  async function saveReceptionistProfile(event) {
+    event.preventDefault();
+    setProfileError("");
+    setNotice("");
+
+    const fullName = profileForm.fullName.trim();
+    const phone = profileForm.phone.trim();
+
+    if (!fullName) {
+      setProfileError("Full name is required.");
+      return;
+    }
+    if (fullName.length > 100 || phone.length > 20) {
+      setProfileError("Full name must be at most 100 characters and phone number at most 20 characters.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const result = await receptionistRequest("/api/receptionist/profile", {
+        method: "PUT",
+        body: JSON.stringify({ fullName, phone }),
+      });
+      if (!result.user) throw new Error("The backend did not return the updated profile.");
+
+      setProfileForm({
+        fullName: result.user.fullName || fullName,
+        phone: result.user.phone || "",
+      });
+      if (typeof onUserUpdate === "function") onUserUpdate(result.user);
+      setNotice(result.message || "Profile updated successfully.");
+    } catch (saveError) {
+      setProfileError(saveError.message || "Unable to update your profile.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function renderProfile() {
+    return (
+      <>
+        <div className="front-page-intro front-profile-intro">
+          <div>
+            <span className="front-eyebrow">ACCOUNT & CONTACT DETAILS</span>
+            <h2>My Profile</h2>
+            <p>Manage your receptionist account and contact information.</p>
+          </div>
+          <span className="front-profile-avatar" aria-hidden="true">
+            {(profileForm.fullName || "R").trim().charAt(0).toUpperCase()}
+          </span>
+        </div>
+
+        <form className="front-form-panel front-profile-form" onSubmit={saveReceptionistProfile}>
+          <div className="front-form-heading">
+            <div>
+              <span className="front-eyebrow">PERSONAL INFORMATION</span>
+              <h3>Profile details</h3>
+            </div>
+          </div>
+
+          {profileError && <p className="front-profile-error" role="alert">{profileError}</p>}
+
+          <div className="front-form-grid">
+            <label>
+              Full name *
+              <input
+                type="text"
+                value={profileForm.fullName}
+                onChange={(event) => setProfileForm((current) => ({ ...current, fullName: event.target.value }))}
+                maxLength={100}
+                autoComplete="name"
+                required
+              />
+            </label>
+            <label>
+              Registered email
+              <input type="email" value={user.email || ""} readOnly aria-describedby="front-profile-email-note" />
+            </label>
+            <label>
+              Phone number
+              <input
+                type="tel"
+                value={profileForm.phone}
+                onChange={(event) => setProfileForm((current) => ({ ...current, phone: event.target.value }))}
+                maxLength={20}
+                autoComplete="tel"
+                placeholder="Enter your contact number"
+              />
+            </label>
+          </div>
+
+          <p className="front-form-hint" id="front-profile-email-note">
+            Your registered email is your sign-in ID and cannot be changed here.
+          </p>
+
+          <div className="front-form-actions">
+            <button
+              type="button"
+              className="front-button outline"
+              disabled={saving}
+              onClick={() => {
+                setProfileForm({ fullName: user.fullName || "", phone: user.phone || "" });
+                setProfileError("");
+                setNotice("");
+              }}
+            >Reset</button>
+            <button type="submit" className="front-button primary" disabled={saving}>
+              {saving ? "Saving…" : "Save Changes"}
+            </button>
+          </div>
+        </form>
+      </>
+    );
+  }
+
   const filteredPatients = patients.filter((patient) => {
     const term = search.trim().toLowerCase();
     if (!term) return true;
@@ -422,6 +546,7 @@ export default function ReceptionistWorkspace({ user, onLogout }) {
     doctors: "Doctors",
     appointments: "Appointments",
     "appointment-requests": "Patient Intake Forms",
+    profile: "My Profile",
   }[section];
 
   function renderAppointments(rows, recent = false) {
@@ -496,7 +621,7 @@ export default function ReceptionistWorkspace({ user, onLogout }) {
               <div className="patient-details-item"><span>Patient ID</span><strong>{selectedAppointment.patient_id ?? "Not available"}</strong></div>
               <div className="patient-details-item"><span>Doctor</span><strong>{selectedAppointment.doctor_name || "Not assigned"}</strong></div>
               <div className="patient-details-item"><span>Date</span><strong>{dateLabel(selectedAppointment.appointment_date)}</strong></div>
-              <div className="patient-details-item"><span>Time</span><strong>{timeLabel(selectedAppointment.start_time)}â€“{timeLabel(selectedAppointment.end_time)}</strong></div>
+              <div className="patient-details-item"><span>Time</span><strong>{timeLabel(selectedAppointment.start_time)}–{timeLabel(selectedAppointment.end_time)}</strong></div>
               <div className="patient-details-item"><span>Status</span><strong>{String(selectedAppointment.status || "Unknown").replace(/_/g, " ")}</strong></div>
               <div className="patient-details-item patient-details-full"><span>Reason</span><strong>{selectedAppointment.reason || "Not provided"}</strong></div>
             </div>
@@ -1289,7 +1414,7 @@ export default function ReceptionistWorkspace({ user, onLogout }) {
               className={`front-nav-item ${section === item.id ? "active" : ""}`}
               aria-current={section === item.id ? "page" : undefined}
             >
-              <span className="front-nav-icon">{item.icon}</span>
+              <span className="front-nav-icon">{item.id === "profile" ? <HealthcareProfileIcon /> : item.icon}</span>
               <span>{item.label}</span>
               {section === item.id && <i />}
             </button>
@@ -1392,6 +1517,7 @@ export default function ReceptionistWorkspace({ user, onLogout }) {
           {!error && section === "doctors" && renderDoctors()}
           {!error && section === "appointment-requests" && renderAppointmentRequests()}
           {!error && section === "appointments" && renderAppointmentsPage()}
+          {!error && section === "profile" && renderProfile()}
         </div>
 
         <footer className="front-footer">

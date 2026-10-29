@@ -1,4 +1,4 @@
-﻿const express = require("express");
+const express = require("express");
 const bcrypt = require("bcryptjs");
 const { pool } = require("../db");
 const { authRequired } = require("../middleware/authMiddleware");
@@ -76,6 +76,53 @@ async function ensurePatientIntakeRequestsTable() {
   await pool.query("SELECT 1 FROM patient_intake_requests LIMIT 0");
   patientIntakeRequestsTableReady = true;
 }
+// RECEPTIONIST PROFILE UPDATE ENDPOINT
+router.put("/profile", async (req, res) => {
+  const fullName = typeof req.body.fullName === "string" ? req.body.fullName.trim() : "";
+  const phone = typeof req.body.phone === "string" ? req.body.phone.trim() : "";
+
+  if (!fullName || fullName.length > 100) {
+    return res.status(400).json({ success: false, message: "Full name is required and must be at most 100 characters." });
+  }
+  if (phone.length > 20) {
+    return res.status(400).json({ success: false, message: "Phone number must be at most 20 characters." });
+  }
+
+  try {
+    const [existing] = await pool.execute(
+      "SELECT user_id FROM users WHERE user_id = ? AND role = 'receptionist' LIMIT 1",
+      [req.auth.userId]
+    );
+    if (!existing.length) {
+      return res.status(404).json({ success: false, message: "Receptionist account was not found." });
+    }
+
+    await pool.execute(
+      "UPDATE users SET full_name = ?, phone = ? WHERE user_id = ? AND role = 'receptionist'",
+      [fullName, phone || null, req.auth.userId]
+    );
+
+    const [rows] = await pool.execute(
+      "SELECT user_id, full_name, email, role, phone FROM users WHERE user_id = ? AND role = 'receptionist' LIMIT 1",
+      [req.auth.userId]
+    );
+    const updated = rows[0];
+    return res.json({
+      success: true,
+      message: "Profile updated successfully.",
+      user: {
+        userId: updated.user_id,
+        fullName: updated.full_name,
+        email: updated.email,
+        role: updated.role,
+        phone: updated.phone || null
+      }
+    });
+  } catch (error) {
+    console.error("Receptionist profile update failed:", error.code || error.name || "unknown");
+    return res.status(500).json({ success: false, message: "Unable to update your profile. Please try again." });
+  }
+});
 router.get("/dashboard", async (req, res) => {
   try {
     const [[patientRows], [doctorRows], [bookingRows]] = await Promise.all([

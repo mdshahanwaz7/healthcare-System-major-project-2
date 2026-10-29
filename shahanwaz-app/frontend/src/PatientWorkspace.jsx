@@ -1,4 +1,5 @@
 import { cloneElement, isValidElement, useEffect, useState } from "react";
+import HealthcareProfileIcon from "./HealthcareProfileIcon";
 
 // PATIENT PORTAL LANGUAGE FEATURE V2
 const PATIENT_TRANSLATIONS = {
@@ -441,6 +442,7 @@ const navigation = [
   { id: "prescriptions", label: "My Prescription", symbol: "✚" },
   { id: "appointment-request", label: "Patient Details Form", symbol: "+" },
   { id: "history", label: "Medical History", symbol: "▧" },
+  { id: "profile", label: "My Profile", symbol: "profile" },
 ];
 
 async function patientApi(path, options = {}) {
@@ -550,6 +552,129 @@ function RecordCard({ record, index, kind }) {
   );
 }
 
+// PATIENT DISCHARGE TABLE WITH VIEW DETAILS V1
+function PatientDischargeRecords({ records = [] }) {
+  const [selectedRecord, setSelectedRecord] = useState(null);
+
+  useEffect(() => {
+    if (!selectedRecord) return undefined;
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setSelectedRecord(null);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedRecord]);
+
+  const getField = (record, keys) => {
+    for (const key of keys) {
+      const value = record?.[key];
+      if (value !== undefined && value !== null && value !== "") return value;
+    }
+    return "—";
+  };
+
+  const details = Object.entries(selectedRecord || {}).filter(
+    ([key]) => !/password|token|secret|file_path|binary_data|blob_data|raw_content|base64/i.test(key)
+  );
+
+  return (
+    <>
+      <div className="patient-discharge-table-wrap">
+        <table className="patient-discharge-table">
+          <thead>
+            <tr>
+              <th scope="col">ID</th>
+              <th scope="col">Date</th>
+              <th scope="col">Diagnosis</th>
+              <th scope="col">Doctor</th>
+              <th scope="col">Status</th>
+              <th scope="col">Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            {records.map((record, index) => {
+              const id = getField(record, ["discharge_id", "dischargeId", "id"]);
+              const date = getField(record, ["discharge_date", "dischargeDate", "discharged_at", "dischargedAt"]);
+              const diagnosis = getField(record, ["diagnosis", "condition", "reason"]);
+              const doctor = getField(record, ["doctor_name", "doctorName", "doctor_id", "doctorId"]);
+              const status = getField(record, ["status"]);
+              const statusClass = String(status).toLowerCase().replace(/[^a-z0-9_-]/g, "-");
+              return (
+                <tr key={record.discharge_id ?? record.dischargeId ?? index}>
+                  <td><span className="patient-discharge-record-id">{id}</span></td>
+                  <td className="patient-discharge-date-cell">{displayValue(date)}</td>
+                  <td className="patient-discharge-diagnosis-cell">{displayValue(diagnosis)}</td>
+                  <td>{displayValue(doctor)}</td>
+                  <td><span className={`patient-discharge-status patient-discharge-status-${statusClass}`}>{displayValue(status)}</span></td>
+                  <td>
+                    <button
+                      type="button"
+                      className="patient-discharge-view-button"
+                      onClick={() => setSelectedRecord(record)}
+                      aria-label={`View discharge record ${id}`}
+                    >
+                      View
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {selectedRecord && (
+        <div
+          className="patient-discharge-modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setSelectedRecord(null);
+          }}
+        >
+          <section
+            className="patient-discharge-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="patient-discharge-modal-title"
+          >
+            <header className="patient-discharge-modal-header">
+              <div>
+                <span className="patient-eyebrow">RECOVERY & FOLLOW-UP</span>
+                <h2 id="patient-discharge-modal-title">
+                  Discharge details {getField(selectedRecord, ["discharge_id", "dischargeId", "id"]) !== "—"
+                    ? `#${getField(selectedRecord, ["discharge_id", "dischargeId", "id"])}`
+                    : ""}
+                </h2>
+                <p>Review the information recorded by your healthcare team.</p>
+              </div>
+              <button
+                type="button"
+                className="patient-discharge-modal-close"
+                onClick={() => setSelectedRecord(null)}
+                aria-label="Close details"
+              >
+                ×
+              </button>
+            </header>
+            <dl className="patient-discharge-detail-grid">
+              {details.map(([key, value]) => (
+                <div className="patient-discharge-detail-field" key={key}>
+                  <dt>{displayLabel(key)}</dt>
+                  <dd>{displayValue(value)}</dd>
+                </div>
+              ))}
+            </dl>
+            <div className="patient-discharge-modal-actions">
+              <button type="button" onClick={() => setSelectedRecord(null)}>
+                Back to records
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+    </>
+  );
+}
 function EmptyState({ symbol, title, description }) {
   return (
     <div className="patient-empty-state">
@@ -584,8 +709,22 @@ function StatCard({ label, value, symbol, note, onClick }) {
   );
 }
 
-export default function PatientWorkspace({ user, onLogout }) {
+export default function PatientWorkspace({ user, onLogout, onUserUpdate }) {
   const [activeSection, setActiveSection] = useState("dashboard");
+  // PATIENT PROFILE STATE V1
+  const [profileForm, setProfileForm] = useState({
+    fullName: user?.fullName || "",
+    phone: user?.phone || "",
+    dateOfBirth: "",
+    gender: "",
+    bloodGroup: "",
+    address: "",
+    emergencyContact: "",
+    allergies: "",
+  });
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileNotice, setProfileNotice] = useState("");
+  const [profileError, setProfileError] = useState("");
   const [loading, setLoading] = useState(false);
   const [pageError, setPageError] = useState("");
   const [recordSearch, setRecordSearch] = useState("");
@@ -633,6 +772,7 @@ export default function PatientWorkspace({ user, onLogout }) {
       chat: "/api/patient/chat",
       prescriptions: "/api/patient/prescriptions",
       history: "/api/patient/medical-history",
+      profile: "/api/patient/profile",
       "appointment-request": "/api/patient/appointment-requests",
     };
 
@@ -644,6 +784,25 @@ export default function PatientWorkspace({ user, onLogout }) {
       const result = await patientApi(requestPath);
 
       if (section === "dashboard") setDashboard(result);
+      // PATIENT PROFILE LOAD MAPPING V1
+      if (section === "profile") {
+        const savedUser = result.user || user || {};
+        const details = result.profile || {};
+        const allowedGenders = ["female", "male", "other", "prefer_not_to_say"];
+        const allowedBloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
+        setProfileForm({
+          fullName: savedUser.fullName || "",
+          phone: savedUser.phone || "",
+          dateOfBirth: details.date_of_birth ? String(details.date_of_birth).slice(0, 10) : "",
+          gender: allowedGenders.includes(String(details.gender || "").toLowerCase()) ? String(details.gender).toLowerCase() : "",
+          bloodGroup: allowedBloodGroups.includes(String(details.blood_group || "").toUpperCase()) ? String(details.blood_group).toUpperCase() : "",
+          address: details.address || "",
+          emergencyContact: details.emergency_contact || "",
+          allergies: details.allergies || "",
+        });
+        setProfileNotice("");
+        setProfileError("");
+      }
       if (section === "care") {
         setDischarges(Array.isArray(result.discharges) ? result.discharges : result.items || []);
       }
@@ -813,6 +972,143 @@ export default function PatientWorkspace({ user, onLogout }) {
       setAppointmentRequestSaving(false);
     }
   }
+  // PATIENT PROFILE MANAGEMENT V1
+  async function savePatientProfile(event) {
+    event.preventDefault();
+    if (profileSaving) return;
+    setProfileError("");
+    setProfileNotice("");
+
+    const payload = {
+      fullName: profileForm.fullName.trim(),
+      phone: profileForm.phone.trim(),
+      dateOfBirth: profileForm.dateOfBirth,
+      gender: profileForm.gender,
+      bloodGroup: profileForm.bloodGroup,
+      address: profileForm.address.trim(),
+      emergencyContact: profileForm.emergencyContact.trim(),
+      allergies: profileForm.allergies.trim(),
+    };
+    if (payload.fullName.length < 2 || payload.fullName.length > 100) {
+      setProfileError("Enter a full name between 2 and 100 characters.");
+      return;
+    }
+    setProfileSaving(true);
+    try {
+      const result = await patientApi("/api/patient/profile", {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+      if (!result.user || !result.profile) {
+        throw new Error("The server did not return the saved patient profile.");
+      }
+      const savedUser = result.user;
+      const details = result.profile;
+      if (typeof onUserUpdate === "function") onUserUpdate(savedUser);
+      setProfileForm({
+        fullName: savedUser.fullName || "",
+        phone: savedUser.phone || "",
+        dateOfBirth: details.date_of_birth ? String(details.date_of_birth).slice(0, 10) : "",
+        gender: details.gender || "",
+        bloodGroup: details.blood_group || "",
+        address: details.address || "",
+        emergencyContact: details.emergency_contact || "",
+        allergies: details.allergies || "",
+      });
+      setProfileNotice(result.message || "Your profile has been updated successfully.");
+    } catch (saveError) {
+      setProfileError(saveError.message || "Unable to save your profile. Please try again.");
+    } finally {
+      setProfileSaving(false);
+    }
+  }
+
+  function renderProfile() {
+    return (
+      <>
+        <div className="patient-page-intro">
+          <span className="patient-eyebrow">ACCOUNT & PERSONAL DETAILS</span>
+          <h2>My Profile</h2>
+          <p>Keep your contact information and personal details up to date.</p>
+        </div>
+        {profileNotice && <div className="patient-profile-notice" role="status">{profileNotice}</div>}
+        {profileError && <div className="patient-profile-error" role="alert">{profileError}</div>}
+
+        <form className="patient-profile-form" onSubmit={savePatientProfile}>
+          <div className="patient-profile-card">
+            <div className="patient-profile-heading">
+              <div>
+                <span className="patient-eyebrow">ACCOUNT INFORMATION</span>
+                <h3>Personal details</h3>
+              </div>
+              <div className="patient-profile-avatar" aria-hidden="true">
+                {(profileForm.fullName || "P").trim().charAt(0).toUpperCase()}
+              </div>
+            </div>
+            <div className="patient-profile-grid">
+              <label>
+                Full name *
+                <input type="text" value={profileForm.fullName} onChange={(event) => setProfileForm((current) => ({ ...current, fullName: event.target.value }))} maxLength={100} autoComplete="name" required />
+              </label>
+              <label>
+                Registered email
+                <input type="email" value={user?.email || ""} readOnly aria-describedby="patient-profile-email-note" />
+              </label>
+              <label>
+                Phone number
+                <input type="tel" value={profileForm.phone} onChange={(event) => setProfileForm((current) => ({ ...current, phone: event.target.value }))} maxLength={20} autoComplete="tel" placeholder="Enter your phone number" />
+              </label>
+              <label>
+                Date of birth
+                <input type="date" value={profileForm.dateOfBirth} max={new Date().toISOString().slice(0, 10)} onChange={(event) => setProfileForm((current) => ({ ...current, dateOfBirth: event.target.value }))} />
+              </label>
+              <label>
+                Gender
+                <select value={profileForm.gender} onChange={(event) => setProfileForm((current) => ({ ...current, gender: event.target.value }))}>
+                  <option value="">Select gender</option>
+                  <option value="female">Female</option>
+                  <option value="male">Male</option>
+                  <option value="other">Other</option>
+                  <option value="prefer_not_to_say">Prefer not to say</option>
+                </select>
+              </label>
+              <label>
+                Blood group
+                <select value={profileForm.bloodGroup} onChange={(event) => setProfileForm((current) => ({ ...current, bloodGroup: event.target.value }))}>
+                  <option value="">Not provided</option>
+                  { ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((group) => <option key={group} value={group}>{group}</option>) }
+                </select>
+              </label>
+              <label className="patient-profile-wide">
+                Address
+                <textarea value={profileForm.address} onChange={(event) => setProfileForm((current) => ({ ...current, address: event.target.value }))} maxLength={500} rows={3} autoComplete="street-address" placeholder="Enter your address" />
+              </label>
+              <label>
+                Emergency contact
+                <input type="text" value={profileForm.emergencyContact} onChange={(event) => setProfileForm((current) => ({ ...current, emergencyContact: event.target.value }))} maxLength={100} placeholder="Name or contact number" />
+              </label>
+              <label className="patient-profile-wide">
+                Allergies (patient-reported)
+                <textarea value={profileForm.allergies} onChange={(event) => setProfileForm((current) => ({ ...current, allergies: event.target.value }))} maxLength={500} rows={3} placeholder="List any known allergies, or leave blank if unknown" />
+              </label>
+            </div>
+            <p className="patient-profile-help" id="patient-profile-email-note">
+              Your registered email is your sign-in ID and cannot be changed here. Please tell your care team about new or serious allergies so they can verify your medical record.
+            </p>
+            <div className="patient-profile-actions">
+              <button type="button" className="patient-profile-secondary" disabled={profileSaving || loading} onClick={() => { setProfileError(""); setProfileNotice(""); loadSection("profile"); }}>
+                Discard changes
+              </button>
+              <button type="submit" className="patient-profile-save" disabled={profileSaving || loading}>
+                {profileSaving ? "Saving…" : "Save changes"}
+              </button>
+            </div>
+          </div>
+        </form>
+      </>
+    );
+  }
+
   function renderAppointmentRequests() {
     return (
       <>
@@ -973,6 +1269,7 @@ export default function PatientWorkspace({ user, onLogout }) {
   }
 
   function renderCare() {
+    const filteredDischarges = filterRecords(discharges);
     return (
       <>
         <div className="patient-page-intro">
@@ -982,22 +1279,27 @@ export default function PatientWorkspace({ user, onLogout }) {
         </div>
         <div className="patient-record-toolbar">
           <label htmlFor="patient-care-record-search">Search discharge records</label>
-          <input id="patient-care-record-search" type="search" value={recordSearch} onChange={(event) => setRecordSearch(event.target.value)} placeholder="Search diagnosis, date, or details" />
-          <span>{filterRecords(discharges).length} shown</span>
+          <input
+            id="patient-care-record-search"
+            type="search"
+            value={recordSearch}
+            onChange={(event) => setRecordSearch(event.target.value)}
+            placeholder="Search diagnosis, date, or details"
+          />
+          <span>{filteredDischarges.length} shown</span>
         </div>
-        {filterRecords(discharges).length ? (
-          <div className="patient-record-list">
-            {filterRecords(discharges).map((record, index) => (
-              <RecordCard key={record.discharge_id ?? index} record={record} index={index} kind="discharge" />
-            ))}
-          </div>
+        {filteredDischarges.length ? (
+          <PatientDischargeRecords records={filteredDischarges} />
         ) : !loading && !pageError ? (
-          <EmptyState symbol="♡" title="No discharge records yet" description="Discharge records entered by your care team will appear here." />
+          <EmptyState
+            symbol="â™¡"
+            title="No discharge records yet"
+            description="Discharge records entered by your care team will appear here."
+          />
         ) : null}
       </>
     );
   }
-
   function renderPrescriptions() {
     return (
       <>
@@ -1333,7 +1635,7 @@ export default function PatientWorkspace({ user, onLogout }) {
               onClick={() => selectSection(item.id)}
               aria-current={activeSection === item.id ? "page" : undefined}
             >
-              <span className="patient-nav-symbol">{item.symbol}</span>
+              <span className="patient-nav-symbol">{item.id === "profile" ? <HealthcareProfileIcon /> : item.symbol}</span>
               <span>{item.label}</span>
               {activeSection === item.id && <span className="patient-nav-active-mark" />}
             </button>
@@ -1402,6 +1704,7 @@ export default function PatientWorkspace({ user, onLogout }) {
           {activeSection === "prescriptions" && renderPrescriptions()}
           {activeSection === "appointment-request" && renderAppointmentRequests()}
           {activeSection === "history" && renderHistory()}
+          {!pageError && activeSection === "profile" && renderProfile()}
         </div>
 
         <footer className="patient-page-footer">

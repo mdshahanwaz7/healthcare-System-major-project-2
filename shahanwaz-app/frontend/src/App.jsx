@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import "./index.css";
 import DoctorWorkspace from "./DoctorWorkspace";
 import ReceptionistWorkspace from "./ReceptionistWorkspace";
@@ -70,7 +70,10 @@ async function apiRequest(path, options = {}) {
 
 function App() {
   const [mode, setMode] = useState("login");
-  const [selectedRole, setSelectedRole] = useState("patient");
+  const [selectedRole, setSelectedRole] = useState(() => {
+    const roleFromLink = new URLSearchParams(window.location.search).get("role");
+    return ["patient", "doctor", "receptionist"].includes(roleFromLink) ? roleFromLink : "patient";
+  });
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [doctorDetails, setDoctorDetails] = useState({
@@ -90,6 +93,17 @@ function App() {
   const [checkingSession, setCheckingSession] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  // EMAIL_LINK_PASSWORD_RECOVERY_V1
+  const [recoveryToken, setRecoveryToken] = useState(() => new URLSearchParams(window.location.search).get("resetToken") || "");
+  const [recoveryStep, setRecoveryStep] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("resetToken");
+    const role = params.get("role");
+    return token && ["patient", "doctor", "receptionist"].includes(role) ? "reset-link" : "";
+  });
+  const [recoveryEmail, setRecoveryEmail] = useState("");
+  const [recoveryNewPassword, setRecoveryNewPassword] = useState("");
+  const [recoveryConfirmPassword, setRecoveryConfirmPassword] = useState("");
 
   async function loadCurrentUser(token) {
     const data = await apiRequest("/api/auth/me", {
@@ -103,7 +117,12 @@ function App() {
 
   useEffect(() => {
     let active = true;
-    const token = sessionStorage.getItem("unifiedHealthcareToken");
+    const resetLinkParams = new URLSearchParams(window.location.search);
+    if (resetLinkParams.has("resetToken")) {
+      sessionStorage.removeItem("unifiedHealthcareToken");
+      setCheckingSession(false);
+      return () => { active = false; };
+    }    const token = sessionStorage.getItem("unifiedHealthcareToken");
 
     if (!token) {
       setCheckingSession(false);
@@ -137,7 +156,17 @@ function App() {
     };
   }, []);
 
+  // EMAIL_LINK_REMOVE_TOKEN_FROM_ADDRESS_BAR
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("resetToken")) {
+      url.searchParams.delete("resetToken");
+      url.searchParams.delete("role");
+      window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
+    }
+  }, []);
   function changeMode(nextMode) {
+    setRecoveryStep("");
     setMode(nextMode);
     setError("");
     setNotice("");
@@ -221,6 +250,72 @@ function App() {
     }
   }
 
+  // EMAIL_LINK_PASSWORD_RECOVERY_V1
+  function openForgotPassword() {
+    setRecoveryEmail(email.trim());
+    setRecoveryToken("");
+    setRecoveryNewPassword("");
+    setRecoveryConfirmPassword("");
+    setError("");
+    setNotice("");
+    setRecoveryStep("request");
+  }
+
+  function closeForgotPassword() {
+    setRecoveryStep("");
+    setRecoveryToken("");
+    setRecoveryNewPassword("");
+    setRecoveryConfirmPassword("");
+    setError("");
+    setNotice("");
+  }
+
+  async function submitRecovery(event) {
+    event.preventDefault();
+    setError("");
+    setNotice("");
+
+    if (recoveryStep === "reset-link" && recoveryNewPassword !== recoveryConfirmPassword) {
+      setError("The new passwords do not match.");
+      return;
+    }
+    if (recoveryStep === "reset-link" && (!recoveryToken || recoveryToken.length !== 64)) {
+      setError("This password-reset link is invalid. Request a new reset link.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      if (recoveryStep === "request") {
+        const result = await apiRequest("/api/auth/forgot-password/request", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: recoveryEmail.trim(), role: selectedRole })
+        });
+        setRecoveryStep("sent");
+        setNotice(result.message || "If an account matches this role and email, a password-reset link will be sent to that address.");
+      } else if (recoveryStep === "reset-link") {
+        const result = await apiRequest("/api/auth/forgot-password/reset", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: recoveryToken, role: selectedRole, password: recoveryNewPassword })
+        });
+        setRecoveryStep("");
+        setRecoveryToken("");
+        setMode("login");
+        setEmail(recoveryEmail.trim());
+        setPassword("");
+        setConfirmPassword("");
+        setRecoveryNewPassword("");
+        setRecoveryConfirmPassword("");
+        setNotice(result.message || "Password reset successfully. Sign in using your new password.");
+      }
+    } catch (recoveryError) {
+      setError(recoveryError.message || "Password recovery could not be completed. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
   function signOut() {
     sessionStorage.removeItem("unifiedHealthcareToken");
     setUser(null);
@@ -242,14 +337,14 @@ function App() {
   }
 
   if (user?.role === "doctor") {
-    return <DoctorWorkspace user={user} onLogout={signOut} />;
+    return <DoctorWorkspace user={user} onLogout={signOut} onUserUpdate={setUser} />;
   }
   if (user?.role === "receptionist") {
-    return <ReceptionistWorkspace user={user} onLogout={signOut} />;
+    return <ReceptionistWorkspace user={user} onLogout={signOut} onUserUpdate={setUser} />;
   }
 
   if (user?.role === "patient") {
-    return <PatientWorkspace user={user} onLogout={signOut} />;
+    return <PatientWorkspace user={user} onLogout={signOut} onUserUpdate={setUser} />;
   }
 
   if (user) {
@@ -354,6 +449,110 @@ function App() {
     );
   }
 
+  // DEDICATED_STANDALONE_PASSWORD_RECOVERY_PAGE
+  // EMAIL_LINK_PASSWORD_RECOVERY_V1: standalone screen for requesting a link or completing it.
+  if (recoveryStep) {
+    const isRequest = recoveryStep === "request";
+    const isSent = recoveryStep === "sent";
+    const isResetLink = recoveryStep === "reset-link";
+    return (
+      <main className="recovery-page">
+        <section className="recovery-card" aria-labelledby="recovery-page-title">
+          <div className="recovery-brand">
+            <span className="recovery-brand-mark" aria-hidden="true">
+              <svg viewBox="0 0 48 48" role="img" focusable="false">
+                <rect x="2" y="2" width="44" height="44" rx="14" fill="currentColor" opacity="0.12" />
+                <path d="M24 12v24M12 24h24" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
+              </svg>
+            </span>
+            <span>Healthcare</span>
+          </div>
+
+          <span className="recovery-eyebrow">SECURE ACCOUNT RECOVERY · {String(selectedRole || "patient").toUpperCase()}</span>
+          <h1 id="recovery-page-title">
+            {isRequest ? "Reset your password" : isSent ? "Check your email" : "Create a new password"}
+          </h1>
+          <p className="recovery-description">
+            {isRequest
+              ? "Enter the email address registered to your selected account. We will send a secure, single-use reset link."
+              : isSent
+                ? "If an account matches this role and email, a reset link will be sent. Check your inbox and spam folder. The link expires in 15 minutes."
+                : "Choose a new password for your account. This reset link can be used only once and expires after 15 minutes."}
+          </p>
+
+          {error && <div className="recovery-feedback recovery-feedback-error" role="alert">{error}</div>}
+          {notice && <div className="recovery-feedback recovery-feedback-success" role="status">{notice}</div>}
+
+          {isRequest && (
+            <form onSubmit={submitRecovery} className="recovery-form">
+              <label className="recovery-label" htmlFor="recoveryEmail">Registered email</label>
+              <input
+                id="recoveryEmail"
+                className="recovery-input"
+                type="email"
+                autoComplete="email"
+                maxLength={100}
+                value={recoveryEmail}
+                onChange={(event) => setRecoveryEmail(event.target.value)}
+                placeholder="you@example.com"
+                required
+              />
+              <button className="recovery-submit" type="submit" disabled={busy}>
+                {busy ? "Sending reset link…" : "Email me a reset link"}
+              </button>
+            </form>
+          )}
+
+          {isSent && (
+            <div className="recovery-form">
+              <button type="button" className="recovery-submit" onClick={() => { setRecoveryStep("request"); setNotice(""); setError(""); }}>
+                Try another email
+              </button>
+            </div>
+          )}
+
+          {isResetLink && (
+            <form onSubmit={submitRecovery} className="recovery-form">
+              <label className="recovery-label" htmlFor="recoveryNewPassword">New password</label>
+              <input
+                id="recoveryNewPassword"
+                className="recovery-input"
+                type="password"
+                autoComplete="new-password"
+                minLength={8}
+                maxLength={72}
+                value={recoveryNewPassword}
+                onChange={(event) => setRecoveryNewPassword(event.target.value)}
+                placeholder="At least 8 characters"
+                required
+              />
+              <label className="recovery-label" htmlFor="recoveryConfirmPassword">Confirm new password</label>
+              <input
+                id="recoveryConfirmPassword"
+                className="recovery-input"
+                type="password"
+                autoComplete="new-password"
+                minLength={8}
+                maxLength={72}
+                value={recoveryConfirmPassword}
+                onChange={(event) => setRecoveryConfirmPassword(event.target.value)}
+                placeholder="Enter the password again"
+                required
+              />
+              <button className="recovery-submit" type="submit" disabled={busy}>
+                {busy ? "Updating password…" : "Reset password"}
+              </button>
+            </form>
+          )}
+
+          <button type="button" className="recovery-back" onClick={closeForgotPassword} disabled={busy}>
+            <span aria-hidden="true">←</span> Back to sign in
+          </button>
+          <p className="recovery-security-note">Your password is changed only after the backend validates the single-use reset link.</p>
+        </section>
+      </main>
+    );
+  }
   return (
     <main className="app-shell auth-layout">
       <section className="welcome-panel">
@@ -404,7 +603,7 @@ function App() {
             <p>
               {mode === "login"
                 ? "Enter your details to continue to your workspace."
-                : "Create a patient account to get started."}
+                : "Create a patient account or submit a Doctor application for Receptionist approval."}
             </p>
           </div>
 
@@ -423,7 +622,6 @@ function App() {
               role="tab"
               aria-selected={mode === "register"}
               disabled={selectedRole === "receptionist"}
-              disabled={selectedRole !== "patient"}
               className={mode === "register" ? "mode-tab active" : "mode-tab"}
               onClick={() => changeMode("register")}
             >
@@ -445,6 +643,7 @@ function App() {
                 aria-pressed={selectedRole === roleOption.value}
                 onClick={() => {
                   setSelectedRole(roleOption.value);
+                  setRecoveryStep("");
                   setError("");
                   setNotice("");
                   setPassword("");
@@ -469,7 +668,7 @@ function App() {
           {error && <div className="message message-error" role="alert">{error}</div>}
           {notice && <div className="message message-success" role="status">{notice}</div>}
 
-          <form onSubmit={handleSubmit} className="auth-form">
+          <form onSubmit={handleSubmit} className="auth-form" hidden={Boolean(recoveryStep)}>
             {mode === "register" && (
               <>
                 <label className="field-label" htmlFor="fullName">Full name</label>
@@ -606,7 +805,11 @@ function App() {
               </>
             )}
 
-            <button className="button button-primary submit-button" type="submit" disabled={busy}>
+            {mode === "login" && (
+              <button type="button" className="forgot-password-link" onClick={openForgotPassword}>
+                Forgot password?
+              </button>
+            )}            <button className="button button-primary submit-button" type="submit" disabled={busy}>
               {busy
                 ? "Please wait…"
                 : mode === "login"
@@ -615,6 +818,116 @@ function App() {
               {!busy && <span aria-hidden="true"> ↗</span>}
             </button>
           </form>
+
+          {recoveryStep && (
+            <form onSubmit={submitRecovery} className="auth-form recovery-form">
+              <div className="recovery-form-heading">
+                <h2>
+                  {recoveryStep === "request"
+                    ? "Reset your password"
+                    : recoveryStep === "verify"
+                      ? "Verify your email"
+                      : "Choose a new password"}
+                </h2>
+                <p>
+                  {recoveryStep === "request"
+                    ? "Enter the email address registered to your selected account."
+                    : recoveryStep === "verify"
+                      ? "Enter the verification code sent to your registered email."
+                      : "Your email has been verified. Create a new password."}
+                </p>
+              </div>
+
+              {recoveryStep === "request" && (
+                <>
+                  <label className="field-label" htmlFor="recoveryEmail">
+                    Registered email
+                  </label>
+                  <input
+                    id="recoveryEmail"
+                    type="email"
+                    autoComplete="email"
+                    value={recoveryEmail}
+                    onChange={(event) => setRecoveryEmail(event.target.value)}
+                    placeholder="Enter your registered email"
+                    required
+                  />
+                  <button className="button button-primary submit-button" type="submit" disabled={busy}>
+                    {busy ? "Sending code…" : "Send verification code"}
+                  </button>
+                </>
+              )}
+
+              {recoveryStep === "verify" && (
+                <>
+                  <label className="field-label" htmlFor="recoveryCode">
+                    Six-digit verification code
+                  </label>
+                  <input
+                    id="recoveryCode"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    pattern="[0-9]{6}"
+                    value={recoveryCode}
+                    onChange={(event) => setRecoveryCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="Enter verification code"
+                    required
+                  />
+                  <button className="button button-primary submit-button" type="submit" disabled={busy}>
+                    {busy ? "Verifying…" : "Verify code"}
+                  </button>
+                </>
+              )}
+
+              {recoveryStep === "reset" && (
+                <>
+                  <label className="field-label" htmlFor="recoveryNewPassword">
+                    New password
+                  </label>
+                  <input
+                    id="recoveryNewPassword"
+                    type="password"
+                    autoComplete="new-password"
+                    minLength={8}
+                    value={recoveryNewPassword}
+                    onChange={(event) => setRecoveryNewPassword(event.target.value)}
+                    placeholder="At least 8 characters"
+                    required
+                  />
+
+                  <label className="field-label" htmlFor="recoveryConfirmPassword">
+                    Confirm new password
+                  </label>
+                  <input
+                    id="recoveryConfirmPassword"
+                    type="password"
+                    autoComplete="new-password"
+                    minLength={8}
+                    value={recoveryConfirmPassword}
+                    onChange={(event) => setRecoveryConfirmPassword(event.target.value)}
+                    placeholder="Enter your new password again"
+                    required
+                  />
+
+                  <button className="button button-primary submit-button" type="submit" disabled={busy}>
+                    {busy ? "Updating password…" : "Reset password"}
+                  </button>
+                </>
+              )}
+
+              <button
+                type="button"
+                className="forgot-password-link"
+                onClick={closeForgotPassword}
+                disabled={busy}
+              >
+                Back to login
+              </button>
+            </form>
+          )}
+
 
           <p className="security-note">
             <span aria-hidden="true">◈</span>
